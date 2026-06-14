@@ -190,6 +190,36 @@
           }
         }
       ]
+    },
+    {
+      "name": "Balances & Settlements",
+      "item": [
+        {
+          "name": "Get Group Balances",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/groups/your_group_id_here/balances", "host": ["{{baseUrl}}"], "path": ["api", "groups", "your_group_id_here", "balances"] }
+          }
+        },
+        {
+          "name": "Record Settlement",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiverId\": \"friend_user_id_here\",\n  \"amount\": \"30.00\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/groups/your_group_id_here/settlements", "host": ["{{baseUrl}}"], "path": ["api", "groups", "your_group_id_here", "settlements"] }
+          }
+        }
+      ]
     }
   ]
 }
