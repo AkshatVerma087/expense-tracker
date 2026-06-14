@@ -66,12 +66,14 @@ export async function getGroupBalances(groupId, userId) {
   });
 
   settlements.forEach(s => {
-    // Payer sent money, so their net balance goes UP (they are owed more / owe less)
+    // Payer sent money, so their totalPaid goes UP and net balance goes UP
     if (balances[s.payerId]) {
+      balances[s.payerId].totalPaid = balances[s.payerId].totalPaid.plus(s.amount);
       balances[s.payerId].netBalance = balances[s.payerId].netBalance.plus(s.amount);
     }
-    // Receiver got money, so their net balance goes DOWN (they are owed less / owe more)
+    // Receiver got money, so their totalOwed goes UP and net balance goes DOWN
     if (balances[s.receiverId]) {
+      balances[s.receiverId].totalOwed = balances[s.receiverId].totalOwed.plus(s.amount);
       balances[s.receiverId].netBalance = balances[s.receiverId].netBalance.minus(s.amount);
     }
   });

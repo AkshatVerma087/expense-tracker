@@ -6,6 +6,7 @@ import Groups from './pages/Groups';
 import Dashboard from './pages/Dashboard';
 import Import from './pages/Import';
 import Report from './pages/Report';
+import ImportHistory from './pages/ImportHistory';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -40,7 +41,8 @@ function Layout({ children }) {
           </div>
           <div className="nav-links">
             <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>Dashboard</NavLink>
-            <NavLink to="/groups" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Groups</NavLink>
+            <NavLink to="/groups" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>Groups</NavLink>
+            <NavLink to="/import-history" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>Imports</NavLink>
             <NavLink to="/import" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Import CSV</NavLink>
           </div>
           <div className="flex items-center gap-8">
@@ -69,8 +71,12 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/groups" element={<Groups />} />
-                <Route path="/groups/:groupId/import-report/:batchId" element={<Report />} />
+                <Route path="/groups/:groupId" element={<Groups />} />
                 <Route path="/import" element={<Import />} />
+                <Route path="/import-history" element={<ImportHistory />} />
+                <Route path="/groups/:groupId/import/:batchId" element={<Import />} />
+                <Route path="/groups/:groupId/import-report/:batchId" element={<Report />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

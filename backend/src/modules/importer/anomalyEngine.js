@@ -1,4 +1,7 @@
 import { Decimal } from '@prisma/client/runtime/library.js';
+import pkg from '@prisma/client';
+const { PrismaClient } = pkg;
+const prisma = new PrismaClient();
 
 export async function detectAnomalies(row, index, groupMembers, existingRows, fetchExchangeRate) {
   const anomalies = [];
@@ -133,7 +136,7 @@ export async function detectAnomalies(row, index, groupMembers, existingRows, fe
 
   // A-09: Unknown Member in Split
   if (splitWith) {
-    const participants = splitWith.split(',').map(s => s.trim());
+    const participants = splitWith.split(/[;,]/).map(s => s.trim()).filter(Boolean);
     const unknown = participants.filter(p => !findMember(p));
     if (unknown.length > 0) {
       anomalies.push({ code: 'A-09', type: 'UNKNOWN_MEMBER_IN_SPLIT', severity: 'MEDIUM', message: `Participants ${unknown.join(', ')} are not group members.` });

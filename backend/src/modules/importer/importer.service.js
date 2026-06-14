@@ -47,11 +47,29 @@ export async function processUpload(groupId, userId, filePath) {
         }
 
         try {
-          // Fetch exchange rate helper
+          // Cache-aware exchange rate helper
         const fetchExchangeRate = async (dateIso) => {
           try {
+            // Check cache first
+            const cached = await prisma.exchangeRateCache.findUnique({
+              where: { date_fromCurrency_toCurrency: { date: dateIso, fromCurrency: 'USD', toCurrency: 'INR' } }
+            });
+            if (cached) {
+              return parseFloat(cached.rate.toString());
+            }
+
+            // Fetch from API
             const response = await axios.get(`https://api.frankfurter.app/${dateIso}?from=USD&to=INR`);
-            return response.data.rates.INR;
+            const rate = response.data.rates.INR;
+
+            // Cache the result
+            await prisma.exchangeRateCache.upsert({
+              where: { date_fromCurrency_toCurrency: { date: dateIso, fromCurrency: 'USD', toCurrency: 'INR' } },
+              update: { rate },
+              create: { date: dateIso, fromCurrency: 'USD', toCurrency: 'INR', rate, source: 'frankfurter' }
+            });
+
+            return rate;
           } catch (error) {
             throw error;
           }
@@ -242,38 +260,71 @@ export async function commitBatch(groupId, batchId, userId) {
          if (row.actionTaken === 'Import as Settlement') {
            const receiver = groupMembers.find(m => description.toLowerCase().includes(m.user.name.toLowerCase()) || description.toLowerCase().includes(m.user.email.toLowerCase()));
            if (receiver) {
-             await tx.settlement.create({
+             const newSettlement = await tx.settlement.create({
                data: {
                  groupId, payerId: payer.userId, receiverId: receiver.userId,
-                 amount: totalAmount, currency, date: new Date(date)
+                 amount: totalAmount, currency, date: new Date(date),
+                 importBatchId: batchId,
+                 notes: `Imported from CSV batch ${batchId}`
                }
+             });
+             // Audit log for settlement
+             await tx.auditLog.create({
+               data: { userId, action: 'SETTLEMENT_CREATED', entityType: 'Settlement', entityId: newSettlement.id,
+                 metadata: { source: 'csv_import', batchId, rowId: row.id } }
              });
              continue; // Skip creating expense
            }
          }
       }
 
-      await tx.expense.create({
+      const isUSD = (currency || '').toUpperCase() === 'USD';
+      const newExpense = await tx.expense.create({
         data: {
           groupId,
           description,
           amount: totalAmount,
-          currency,
+          currency: isUSD ? 'INR' : currency,   // Store in group currency (INR)
+          originalCurrency: currency,
+          originalAmount: isUSD ? totalAmount : null,
           exchangeRateToGroupCurrency: new Decimal(exchangeRate),
+          exchangeRateSource: isUSD ? 'frankfurter' : null,
+          exchangeRateDate: isUSD ? new Date(date) : null,
           expenseDate: new Date(date),
           paidById: payer.userId,
           splitType: splitType === 'SHARE' ? 'EQUAL' : splitType,
+          importBatchId: batchId,
+          notes: row.parsedData.notes || null,
+          category: row.parsedData.category || null,
           participants: {
             create: computedParticipants
           }
         }
       });
+
+      // Audit log for expense
+      await tx.auditLog.create({
+        data: { userId, action: 'EXPENSE_CREATED', entityType: 'Expense', entityId: newExpense.id,
+          metadata: { source: 'csv_import', batchId, rowId: row.id, originalCurrency: currency } }
+      });
     }
 
-    // Mark batch as committed
+    // Count anomalies for ImportBatch stats
+    const totalAnomalies = batch.rows.reduce((sum, r) => {
+      if (r.anomalies && Array.isArray(r.anomalies)) return sum + r.anomalies.length;
+      return sum;
+    }, 0);
+
+    // Mark batch as committed with stats
     await tx.importBatch.update({
       where: { id: batchId },
-      data: { status: 'COMMITTED' }
+      data: { status: 'COMMITTED', totalRows: batch.rows.length, anomalyCount: totalAnomalies, committedBy: userId }
+    });
+
+    // Audit log for the batch commit itself
+    await tx.auditLog.create({
+      data: { userId, action: 'BATCH_COMMITTED', entityType: 'ImportBatch', entityId: batchId,
+        metadata: { rowsImported: resolvedRows.length, totalRows: batch.rows.length } }
     });
   });
 

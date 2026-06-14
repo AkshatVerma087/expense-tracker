@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getGroups, createGroup, getGroupDetails, addGroupMember, getGroupBalances, getGroupExpenses, createExpense, recordSettlement } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { getAvatarClass, getInitials } from '../utils/avatar';
 
 export default function Groups() {
   const { user } = useAuth();
+  const { groupId } = useParams();
+  const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [activeTab, setActiveTab] = useState('Balances');
@@ -35,10 +38,6 @@ export default function Groups() {
     try {
       const data = await getGroups();
       setGroups(data.groups || []);
-      // Auto-select first group if none selected
-      if (data.groups && data.groups.length > 0 && !selectedGroup) {
-         handleSelectGroup(data.groups[0].id);
-      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -50,13 +49,21 @@ export default function Groups() {
     loadGroups();
   }, []);
 
-  const handleSelectGroup = async (groupId) => {
+  useEffect(() => {
+    if (groupId) {
+      handleSelectGroup(groupId);
+    } else {
+      setSelectedGroup(null);
+    }
+  }, [groupId]);
+
+  const handleSelectGroup = async (gid) => {
     try {
       const [groupData, balanceData, expenseData, settlementData] = await Promise.all([
-        getGroupDetails(groupId),
-        getGroupBalances(groupId),
-        getGroupExpenses(groupId),
-        import('../api').then(api => api.getGroupSettlements(groupId))
+        getGroupDetails(gid),
+        getGroupBalances(gid),
+        getGroupExpenses(gid),
+        import('../api').then(api => api.getGroupSettlements(gid))
       ]);
       setSelectedGroup(groupData.group);
       setBalances(balanceData);
@@ -134,25 +141,38 @@ export default function Groups() {
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
 
-  if (!selectedGroup) {
-    return (
-      <div>
-        <div className="screen-label">Groups</div>
-        <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏠</div>
-          <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No Group Selected</div>
-          <p className="text-muted" style={{ marginBottom: '24px' }}>Select a group from the dashboard or create a new one.</p>
-          <button className="btn btn-primary" onClick={() => setCreateModalOpen(true)}>+ Create New Group</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div className="screen-label">Group Detail · {activeTab}</div>
+      {!selectedGroup ? (
+        <div>
+          <div className="flex justify-between items-center" style={{ marginBottom: '24px' }}>
+            <div className="screen-label" style={{ marginBottom: 0 }}>Groups</div>
+            <button className="btn btn-primary" onClick={() => setCreateModalOpen(true)}>+ Create New Group</button>
+          </div>
+          
+          {groups.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏠</div>
+              <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No Groups Yet</div>
+              <p className="text-muted" style={{ marginBottom: '24px' }}>You aren't part of any groups.</p>
+            </div>
+          ) : (
+            <div className="grid-3">
+              {groups.map(g => (
+                <div key={g.id} className="card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => navigate(`/groups/${g.id}`)}>
+                  <div style={{ fontSize: '32px', marginBottom: '12px' }}>🏠</div>
+                  <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{g.name}</div>
+                  <div className="text-sm text-muted">{g.currency} · Created {new Date(g.createdAt).toLocaleDateString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <div className="screen-label">Group Detail · {activeTab}</div>
 
-      {/* Header */}
+          {/* Header */}
       <div className="card" style={{ marginBottom: '16px' }}>
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-16">
@@ -358,7 +378,9 @@ export default function Groups() {
             )}
           </div>
         </div>
+        </div>
       </div>
+      )}
 
       {/* Modals */}
       {isCreateModalOpen && (

@@ -112,6 +112,10 @@ export async function commitBatch(groupId, batchId) {
   });
 }
 
+export async function getAllBatches() {
+  return apiFetch('/import/batches');
+}
+
 // Settlement APIs
 export async function recordSettlement(groupId, payerId, receiverId, amount) {
   return apiFetch(`/groups/${groupId}/settlements`, {

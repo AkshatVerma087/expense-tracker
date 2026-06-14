@@ -22,6 +22,8 @@ model User {
   ExpenseParticipations ExpenseParticipant[] @relation("ExpenseParticipations")
   PaidSettlements     Settlement[] @relation("PaidSettlements")
   ReceivedSettlements Settlement[] @relation("ReceivedSettlements")
+  AuditLogs        AuditLog[]
+  Notifications    Notification[]
 }
 
 model RefreshToken {
@@ -70,11 +72,18 @@ model Expense {
   groupId                     String
   description                 String
   amount                      Decimal              @db.Decimal(15, 4)
-  currency                    String               @default("USD")
+  currency                    String               @default("INR")
+  originalCurrency            String?              // The currency as it appeared in the CSV/form
+  originalAmount              Decimal?             @db.Decimal(15, 4) // Pre-conversion amount
   exchangeRateToGroupCurrency Decimal              @default(1.0) @db.Decimal(15, 6)
+  exchangeRateSource          String?              // e.g. "frankfurter" or "manual"
+  exchangeRateDate            DateTime?            // The date the exchange rate was fetched for
   expenseDate                 DateTime             @default(now())
   paidById                    String
   splitType                   String               // "EQUAL", "UNEQUAL", "PERCENTAGE", "SHARE"
+  importBatchId               String?              // The ImportBatch this came from, if any
+  notes                       String?
+  category                    String?
   deletedAt                   DateTime?            // Soft delete
   createdAt                   DateTime             @default(now())
   updatedAt                   DateTime             @updatedAt
@@ -85,42 +94,52 @@ model Expense {
 }
 
 model ExpenseParticipant {
-  id          String   @id @default(uuid())
-  expenseId   String
-  userId      String
-  amountOwed  Decimal  @db.Decimal(15, 4)
-  splitValue  Decimal? @db.Decimal(15, 4) // Stores exactly what was input (e.g. 20 for 20%, 3 for 3 shares)
+  id              String   @id @default(uuid())
+  expenseId       String
+  userId          String
+  amountOwed      Decimal  @db.Decimal(15, 4)
+  splitValue      Decimal? @db.Decimal(15, 4) // Raw input value (20 for 20%, 3 for 3 shares, exact amount)
+  shareNumerator  Int?     // For fractional share splits
+  shareDenominator Int?    // For fractional share splits
+  percentage      Decimal? @db.Decimal(7, 4)  // Explicit percentage
+  isSettled       Boolean  @default(false)     // Whether this participant's share has been settled
   
-  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  user        User     @relation("ExpenseParticipations", fields: [userId], references: [id])
+  expense         Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user            User     @relation("ExpenseParticipations", fields: [userId], references: [id])
 
   @@unique([expenseId, userId])
 }
 
 model Settlement {
-  id          String   @id @default(uuid())
-  groupId     String
-  payerId     String
-  receiverId  String
-  amount      Decimal  @db.Decimal(15, 4)
-  currency    String   @default("USD")
-  date        DateTime @default(now())
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  groupId       String
+  payerId       String
+  receiverId    String
+  amount        Decimal  @db.Decimal(15, 4)
+  currency      String   @default("INR")
+  date          DateTime @default(now())
+  importBatchId String?  // The ImportBatch this came from, if any
+  notes         String?
+  deletedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  payer       User     @relation("PaidSettlements", fields: [payerId], references: [id])
-  receiver    User     @relation("ReceivedSettlements", fields: [receiverId], references: [id])
+  group         Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  payer         User     @relation("PaidSettlements", fields: [payerId], references: [id])
+  receiver      User     @relation("ReceivedSettlements", fields: [receiverId], references: [id])
 }
 
 model ImportBatch {
-  id        String      @id @default(uuid())
-  groupId   String
-  status    String      @default("PENDING") // PENDING, COMMITTED, REJECTED
-  createdAt DateTime    @default(now())
+  id          String      @id @default(uuid())
+  groupId     String
+  status      String      @default("PENDING") // PENDING, NEEDS_REVIEW, READY, COMMITTED, REJECTED
+  totalRows   Int         @default(0)
+  anomalyCount Int        @default(0)
+  committedBy String?     // userId who committed
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
   
-  rows      ImportRow[]
+  rows        ImportRow[]
 }
 
 model ImportRow {
@@ -133,4 +152,47 @@ model ImportRow {
   actionTaken String?
   
   batch       ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+}
+
+// --- NEW TABLES FROM COMPLIANCE REPORT ---
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String   // e.g. "EXPENSE_CREATED", "ANOMALY_RESOLVED", "BATCH_COMMITTED"
+  entityType String   // e.g. "Expense", "ImportBatch"
+  entityId   String   // The ID of the entity acted upon
+  metadata   Json?    // Any extra context (old value, new value, etc.)
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+}
+
+model ExchangeRateCache {
+  id         String   @id @default(uuid())
+  date       String   // ISO date string: "2026-01-15"
+  fromCurrency String
+  toCurrency String
+  rate       Decimal  @db.Decimal(15, 6)
+  source     String   @default("frankfurter")
+  fetchedAt  DateTime @default(now())
+
+  @@unique([date, fromCurrency, toCurrency])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // e.g. "GROUP_INVITE", "SETTLEMENT_REQUESTED", "EXPENSE_ADDED"
+  message   String
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
 }

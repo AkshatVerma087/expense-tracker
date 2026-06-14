@@ -1,17 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { uploadCSV, getBatchStatus, resolveRow, commitBatch } from '../api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function Import() {
   const navigate = useNavigate();
-  const [step, setStep] = useState('UPLOAD'); // UPLOAD, PROCESSING, REVIEW, IMPORTING, SUCCESS
-  const [batchId, setBatchId] = useState(null);
-  const [groupId, setGroupId] = useState(null); // Received from global upload
+  const { groupId: routeGroupId, batchId: routeBatchId } = useParams();
+  const [step, setStep] = useState(routeBatchId ? 'PROCESSING' : 'UPLOAD');
+  const [batchId, setBatchId] = useState(routeBatchId || null);
+  const [groupId, setGroupId] = useState(routeGroupId || null);
   const [batchData, setBatchData] = useState(null);
   const [error, setError] = useState(null);
   const [fileData, setFileData] = useState(null);
   
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (routeBatchId && routeGroupId) {
+      setStep('PROCESSING');
+      // Status poller in the next useEffect will pick this up
+    }
+  }, [routeBatchId, routeGroupId]);
 
   const handleFileUpload = async (file) => {
     if (!file) return;
