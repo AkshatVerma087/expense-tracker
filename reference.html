@@ -1,0 +1,600 @@
+        <span class="mono">₹0.00</span>
+      </div>
+      <div class="divider"></div>
+      <div class="breakdown-row">
+        <span style="font-weight:600;">You owe Dev</span>
+        <span class="amount-negative mono">₹11,340.00</span>
+      </div>
+    </div>
+    <button class="btn btn-success full-width" style="justify-content:center; padding:10px;">
+      Pay Dev ₹11,340
+    </button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+  5. IMPORT — UPLOAD SCREEN
+════════════════════════════════════════════════════════════ -->
+<div class="screen-label">5 — Import · Upload</div>
+
+<div style="display:grid; grid-template-columns:1fr 300px; gap:20px;">
+  <div class="card">
+    <div style="font-size:18px; font-weight:700; margin-bottom:6px;">Import Expenses</div>
+    <div class="text-sm text-muted" style="margin-bottom:20px;">Upload your spreadsheet and we'll detect every anomaly before touching any data.</div>
+
+    <!-- Drop zone -->
+    <div style="border: 2px dashed var(--slate-300); border-radius:var(--radius-lg); padding:48px 24px; text-align:center; background:var(--slate-50); cursor:pointer; transition: all .2s;" onmouseover="this.style.borderColor='var(--indigo)'; this.style.background='var(--indigo-l)'" onmouseout="this.style.borderColor='var(--slate-300)'; this.style.background='var(--slate-50)'">
+      <div style="font-size:36px; margin-bottom:12px;">📊</div>
+      <div style="font-weight:600; margin-bottom:6px;">Drop your .xlsx or .csv file here</div>
+      <div class="text-sm text-muted" style="margin-bottom:16px;">or click to browse · Max 10 MB</div>
+      <button class="btn btn-outline">Choose File</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Uploaded file preview -->
+    <div class="card card-sm" style="border-color:var(--indigo); background:var(--indigo-l);">
+      <div class="flex items-center gap-12">
+        <div style="font-size:24px;">📄</div>
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13px;">expenses_export.csv</div>
+          <div class="text-xs text-muted">42 rows · 18.4 KB · Uploaded just now</div>
+        </div>
+        <span class="badge badge-indigo">Ready</span>
+      </div>
+    </div>
+
+    <div class="mt-16">
+      <button class="btn btn-primary" style="padding:10px 24px;">Analyse File →</button>
+    </div>
+  </div>
+
+  <!-- Guidelines -->
+  <div class="card">
+    <div class="card-title">What we check</div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div class="flex items-center gap-8">
+        <span>🗓</span>
+        <span class="text-sm">Date format (DD/MM vs MM/DD)</span>
+      </div>
+      <div class="flex items-center gap-8">
+        <span>👥</span>
+        <span class="text-sm">Member names & departures</span>
+      </div>
+      <div class="flex items-center gap-8">
+        <span>📋</span>
+        <span class="text-sm">Exact & conflicting duplicates</span>
+      </div>
+      <div class="flex items-center gap-8">
+        <span>💱</span>
+        <span class="text-sm">USD → INR conversion (historical rates)</span>
+      </div>
+      <div class="flex items-center gap-8">
+        <span>%</span>
+        <span class="text-sm">Percentage splits summing to 100%</span>
+      </div>
+      <div class="flex items-center gap-8">
+        <span>💸</span>
+        <span class="text-sm">Settlement vs expense classification</span>
+      </div>
+      <div class="flex items-center gap-8">
+        <span>🔢</span>
+        <span class="text-sm">Missing payer, zero & negative amounts</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="alert alert-info">
+      <span>🔒</span>
+      <span style="font-size:12px;">Nothing is saved until you review and confirm each anomaly.</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+  6. IMPORT — ANOMALY REVIEW
+════════════════════════════════════════════════════════════ -->
+<div class="screen-label">6 — Import · Anomaly Review</div>
+
+<div class="review-layout">
+  <!-- Sidebar -->
+  <div class="review-sidebar">
+    <div style="font-weight:700; margin-bottom:14px;">Review Progress</div>
+
+    <!-- Progress -->
+    <div style="margin-bottom:16px;">
+      <div class="flex justify-between text-xs text-muted" style="margin-bottom:6px;">
+        <span>Resolved</span>
+        <span>11 / 18</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:61%; background:var(--indigo);"></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Severity summary -->
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-8">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--red);"></div>
+          <span class="text-sm">Critical</span>
+        </div>
+        <div class="flex gap-8">
+          <span class="badge badge-red">8 total</span>
+          <span class="badge badge-green">6 done</span>
+        </div>
+      </div>
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-8">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--amber);"></div>
+          <span class="text-sm">Medium</span>
+        </div>
+        <div class="flex gap-8">
+          <span class="badge badge-amber">8 total</span>
+          <span class="badge badge-green">5 done</span>
+        </div>
+      </div>
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-8">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--slate-400);"></div>
+          <span class="text-sm">Low</span>
+        </div>
+        <div class="flex gap-8">
+          <span class="badge badge-slate">2 total</span>
+          <span class="badge badge-green">0 done</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Bulk actions -->
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button class="btn btn-outline full-width btn-sm" style="justify-content:center;">✓ Approve all LOW</button>
+      <button class="btn btn-outline full-width btn-sm" style="justify-content:center;">✓ Approve all MEDIUM</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Commit -->
+    <div class="alert alert-warning" style="margin-bottom:12px;">
+      <span>⚠</span>
+      <span style="font-size:11px;">2 critical anomalies must be resolved before committing.</span>
+    </div>
+    <button class="btn full-width" style="background:var(--slate-300); color:var(--slate-500); justify-content:center; cursor:not-allowed;" disabled>
+      Commit Import
+    </button>
+  </div>
+
+  <!-- Anomaly cards -->
+  <div>
+    <!-- A-03: DUPLICATE CONFLICTING — CRITICAL / BLOCKED -->
+    <div class="anomaly-card anomaly-critical">
+      <div class="flex justify-between items-center" style="margin-bottom:10px;">
+        <div class="flex items-center gap-8">
+          <span class="badge badge-red">🔴 CRITICAL · A-03</span>
+          <span class="badge badge-slate">Row 23 & 24</span>
+          <span style="font-size:12px; font-weight:600;">DUPLICATE_CONFLICTING</span>
+        </div>
+        <span class="badge badge-red">⛔ BLOCKED</span>
+      </div>
+      <div style="font-size:13px; margin-bottom:12px; color:var(--slate-700);">
+        Two entries for Thalassa dinner exist with <strong>different payers</strong> and <strong>different amounts</strong>. Both cannot be correct.
+      </div>
+      <div class="grid-2" style="margin-bottom:12px;">
+        <div class="card card-sm" style="border-color:#FECACA;">
+          <div class="text-xs text-muted" style="margin-bottom:6px;">Row 23</div>
+          <div style="font-weight:600; font-size:13px;">Dinner at Thalassa</div>
+          <div class="text-sm" style="margin-top:4px;">Paid by: <strong>Aisha</strong> · ₹2,400</div>
+          <div class="text-xs text-muted" style="margin-top:4px;">March 11, 2026</div>
+          <button class="btn btn-outline btn-sm" style="margin-top:8px; border-color:var(--green); color:var(--green);">✓ Keep this</button>
+        </div>
+        <div class="card card-sm" style="border-color:#FECACA;">
+          <div class="text-xs text-muted" style="margin-bottom:6px;">Row 24</div>
+          <div style="font-weight:600; font-size:13px;">Thalassa dinner</div>
+          <div class="text-sm" style="margin-top:4px;">Paid by: <strong>Rohan</strong> · ₹2,450</div>
+          <div class="text-xs text-muted" style="margin-top:4px;">March 11, 2026 · Note: "Aisha also logged this"</div>
+          <button class="btn btn-outline btn-sm" style="margin-top:8px; border-color:var(--green); color:var(--green);">✓ Keep this</button>
+        </div>
+      </div>
+      <div class="text-xs text-muted">Select one entry to keep. The other will be discarded.</div>
+    </div>
+
+    <!-- A-05: PERCENTAGE SUM — CRITICAL -->
+    <div class="anomaly-card anomaly-critical">
+      <div class="flex justify-between items-center" style="margin-bottom:10px;">
+        <div class="flex items-center gap-8">
+          <span class="badge badge-red">🔴 CRITICAL · A-05</span>
+          <span class="badge badge-slate">Row 14</span>
+          <span style="font-size:12px; font-weight:600;">PERCENTAGE_SUM_INVALID</span>
+        </div>
+        <span class="badge badge-red">⛔ BLOCKED</span>
+      </div>
+      <div style="font-size:13px; margin-bottom:12px; color:var(--slate-700);">
+        Pizza Friday percentage split sums to <strong>110%</strong>, not 100%. Edit the percentages before this row can be imported.
+      </div>
+      <div class="card card-sm" style="background:var(--slate-50); margin-bottom:12px;">
+        <div class="text-xs text-muted" style="margin-bottom:8px;">Current split (total: <strong style="color:var(--red);">110%</strong>)</div>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px;">
+          <div class="input-group"><label class="input-label">Aisha %</label><input class="input" value="30" style="border-color:var(--red);"></div>
+          <div class="input-group"><label class="input-label">Rohan %</label><input class="input" value="30" style="border-color:var(--red);"></div>
+          <div class="input-group"><label class="input-label">Priya %</label><input class="input" value="30" style="border-color:var(--red);"></div>
+          <div class="input-group"><label class="input-label">Meera %</label><input class="input" value="20" style="border-color:var(--red);"></div>
+        </div>
+        <div class="alert alert-error mt-8">⚠ Sum = 110%. Must equal exactly 100%.</div>
+      </div>
+      <button class="btn btn-primary btn-sm">Save corrected split</button>
+    </div>
+
+    <!-- A-04: SETTLEMENT AS EXPENSE — resolved -->
+    <div class="anomaly-card" style="border-color:#BBF7D0; background:#F0FFF4;">
+      <div class="flex justify-between items-center" style="margin-bottom:10px;">
+        <div class="flex items-center gap-8">
+          <span class="badge badge-red">🔴 CRITICAL · A-04</span>
+          <span class="badge badge-slate">Row 13</span>
+          <span style="font-size:12px; font-weight:600;">SETTLEMENT_AS_EXPENSE</span>
+        </div>
+        <span class="badge badge-green">✓ APPROVED</span>
+      </div>
+      <div style="font-size:13px; margin-bottom:10px; color:var(--slate-700);">
+        "Rohan paid Aisha back" (₹5,000) is a payment transfer, not a shared expense. It will be imported as a <strong>Settlement record</strong>.
+      </div>
+      <div class="flex gap-8">
+        <div class="badge badge-green">Settlement: Rohan → Aisha · ₹5,000</div>
+      </div>
+    </div>
+
+    <!-- A-17: USD CONVERSION — CRITICAL / resolved -->
+    <div class="anomaly-card" style="border-color:#BBF7D0; background:#F0FFF4;">
+      <div class="flex justify-between items-center" style="margin-bottom:10px;">
+        <div class="flex items-center gap-8">
+          <span class="badge badge-red">🔴 CRITICAL · A-17</span>
+          <span class="badge badge-slate">Rows 19, 20, 22, 25</span>
+          <span style="font-size:12px; font-weight:600;">FOREIGN_CURRENCY_USD</span>
+        </div>
+        <span class="badge badge-green">✓ APPROVED</span>
+      </div>
+      <div style="font-size:13px; margin-bottom:10px;">4 USD expenses converted at historical rates.</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="badge badge-slate">Villa $540 → ₹45,360 @ 84.00</div>
+        <div class="badge badge-slate">Beach $84 → ₹7,043.40 @ 83.85</div>
+        <div class="badge badge-slate">Parasail $150 → ₹12,633 @ 84.22</div>
+        <div class="badge badge-slate">Refund -$30 → -₹2,526.60</div>
+      </div>
+    </div>
+
+    <!-- A-08: MISSING CURRENCY — MEDIUM -->
+    <div class="anomaly-card anomaly-medium">
+      <div class="flex justify-between items-center" style="margin-bottom:10px;">
+        <div class="flex items-center gap-8">
+          <span class="badge badge-amber">🟡 MEDIUM · A-08</span>
+          <span class="badge badge-slate">Row 27</span>
+          <span style="font-size:12px; font-weight:600;">MISSING_CURRENCY</span>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-success btn-sm">✓ Approve (INR)</button>
+          <button class="btn btn-ghost btn-sm">Skip</button>
+        </div>
+      </div>
+      <div style="font-size:13px; margin-bottom:8px; color:var(--slate-700);">
+        Groceries DMart (2105) has no currency specified. Context strongly suggests <strong>INR</strong> — all other March expenses are INR.
+      </div>
+      <div class="flex gap-8">
+        <div class="badge badge-amber">Original: NULL</div>
+        <div>→</div>
+        <div class="badge badge-green">Resolved: INR</div>
+      </div>
+    </div>
+
+    <!-- A-12: MEMBER AFTER DEPARTURE — CRITICAL -->
+    <div class="anomaly-card anomaly-critical">
+      <div class="flex justify-between items-center" style="margin-bottom:10px;">
+        <div class="flex items-center gap-8">
+          <span class="badge badge-red">🔴 CRITICAL · A-12</span>
+          <span class="badge badge-slate">Row 35</span>
+          <span style="font-size:12px; font-weight:600;">MEMBER_POST_DEPARTURE</span>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-success btn-sm">✓ Remove Meera</button>
+          <button class="btn btn-ghost btn-sm">Skip row</button>
+        </div>
+      </div>
+      <div style="font-size:13px; margin-bottom:10px; color:var(--slate-700);">
+        Groceries BigBasket (April 2, 2026) includes <strong>Meera</strong> who left the group on <strong>March 31, 2026</strong>. Her share would be redistributed equally among Aisha, Rohan, Priya, and Sam.
+      </div>
+      <div class="grid-2">
+        <div class="card card-sm" style="background:var(--red-l); border-color:#FECACA;">
+          <div class="text-xs" style="color:#991B1B; font-weight:600; margin-bottom:6px;">Original split</div>
+          <div class="text-xs">Aisha ₹970, Rohan ₹970, Priya ₹970, <strong>Meera ₹970</strong>, Sam ₹970</div>
+          <div class="text-xs text-muted mt-4">Total: ₹4,850</div>
+        </div>
+        <div class="card card-sm" style="background:var(--green-l); border-color:#BBF7D0;">
+          <div class="text-xs" style="color:#166534; font-weight:600; margin-bottom:6px;">Corrected split</div>
+          <div class="text-xs">Aisha ₹1,212.50, Rohan ₹1,212.50, Priya ₹1,212.50, Sam ₹1,212.50</div>
+          <div class="text-xs text-muted mt-4">Total: ₹4,850 ✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+  7. IMPORT REPORT
+════════════════════════════════════════════════════════════ -->
+<div class="screen-label">7 — Import Report</div>
+
+<div class="card">
+  <div class="flex justify-between items-center" style="margin-bottom:20px;">
+    <div>
+      <div style="font-size:18px; font-weight:700; margin-bottom:4px;">✅ Import Complete</div>
+      <div class="text-sm text-muted">expenses_export.csv · Committed June 14, 2026 at 3:47 PM</div>
+    </div>
+    <button class="btn btn-outline">⬇ Download Report</button>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:20px;">
+    <div class="stat-card">
+      <div class="stat-label">Rows in file</div>
+      <div class="stat-value" style="font-size:24px; color:var(--slate-800);">42</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Imported</div>
+      <div class="stat-value" style="font-size:24px; color:#166534;">36</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">As Settlements</div>
+      <div class="stat-value" style="font-size:24px; color:var(--sky);">2</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Skipped</div>
+      <div class="stat-value" style="font-size:24px; color:var(--slate-500);">4</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="card-title">Anomaly Resolutions</div>
+      <table class="table">
+        <thead>
+          <tr><th>Code</th><th>Description</th><th>Resolution</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-red">A-01</span></td>
+            <td class="text-sm">Date format (26 rows)</td>
+            <td><span class="badge badge-green">Auto-corrected</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">A-02</span></td>
+            <td class="text-sm">Exact duplicate (Marina Bites)</td>
+            <td><span class="badge badge-green">Row 4 kept</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">A-03</span></td>
+            <td class="text-sm">Conflicting duplicate (Thalassa)</td>
+            <td><span class="badge badge-green">Row 23 kept</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">A-04</span></td>
+            <td class="text-sm">Settlement as expense</td>
+            <td><span class="badge badge-sky">→ Settlement table</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">A-05</span></td>
+            <td class="text-sm">Percentages 110%</td>
+            <td><span class="badge badge-green">User edited</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-amber">A-06</span></td>
+            <td class="text-sm">Sub-paise ₹899.995</td>
+            <td><span class="badge badge-green">Rounded ₹900</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">A-07</span></td>
+            <td class="text-sm">Missing payer</td>
+            <td><span class="badge badge-slate">Skipped</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">A-17</span></td>
+            <td class="text-sm">USD → INR (4 rows)</td>
+            <td><span class="badge badge-green">Rates fetched</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <div class="card-title">Exchange Rates Applied</div>
+      <table class="table">
+        <thead>
+          <tr><th>Date</th><th>Expense</th><th>Rate (USD/INR)</th><th>Converted</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono text-sm">Mar 9</td>
+            <td class="text-sm">Goa Villa $540</td>
+            <td class="mono">84.0000</td>
+            <td class="mono amount-negative">₹45,360</td>
+          </tr>
+          <tr>
+            <td class="mono text-sm">Mar 11</td>
+            <td class="text-sm">Beach Shack $84</td>
+            <td class="mono">83.8500</td>
+            <td class="mono amount-negative">₹7,043</td>
+          </tr>
+          <tr>
+            <td class="mono text-sm">Mar 15</td>
+            <td class="text-sm">Parasailing $150</td>
+            <td class="mono">84.2200</td>
+            <td class="mono amount-negative">₹12,633</td>
+          </tr>
+          <tr>
+            <td class="mono text-sm">Mar 15</td>
+            <td class="text-sm">Refund -$30</td>
+            <td class="mono">84.2200</td>
+            <td class="mono amount-positive">-₹2,527</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <div class="alert alert-success">
+        <span>✓</span>
+        <div>
+          <div style="font-weight:600; margin-bottom:2px;">Audit Trail Saved</div>
+          <div style="font-size:11px;">Every decision is permanently logged. View full audit log in Reports → Import History.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+  8. CREATE EXPENSE MODAL
+════════════════════════════════════════════════════════════ -->
+<div class="screen-label">8 — Create Expense</div>
+
+<div style="max-width:600px;">
+  <div class="card">
+    <div style="font-size:16px; font-weight:700; margin-bottom:20px;">New Expense</div>
+
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div class="input-group">
+        <label class="input-label">Description</label>
+        <input class="input" placeholder="What was this expense for?" value="March rent">
+      </div>
+
+      <div class="grid-2">
+        <div class="input-group">
+          <label class="input-label">Date</label>
+          <input class="input" type="date" value="2026-03-01">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Category</label>
+          <select class="input">
+            <option>🏠 Rent</option>
+            <option>🛒 Groceries</option>
+            <option>🍕 Food & Dining</option>
+            <option>⚡ Utilities</option>
+            <option>✈️ Travel</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="input-group">
+          <label class="input-label">Amount</label>
+          <div class="input-prefix">
+            <span class="input-prefix-text">₹</span>
+            <input class="input" type="number" placeholder="0.00" value="24000">
+          </div>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Currency</label>
+          <select class="input">
+            <option>INR ₹</option>
+            <option>USD $</option>
+            <option>EUR €</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Paid by</label>
+        <select class="input">
+          <option>Aisha</option>
+          <option>Rohan</option>
+          <option>Priya</option>
+          <option>Dev</option>
+          <option>Sam</option>
+        </select>
+      </div>
+
+      <!-- Split type -->
+      <div class="input-group">
+        <label class="input-label">Split type</label>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px;">
+          <button class="btn" style="background:var(--sky); color:white; justify-content:center; font-size:12px;">= Equal</button>
+          <button class="btn btn-outline" style="justify-content:center; font-size:12px;">≠ Unequal</button>
+          <button class="btn btn-outline" style="justify-content:center; font-size:12px;">% Percent</button>
+          <button class="btn btn-outline" style="justify-content:center; font-size:12px;">⅓ Shares</button>
+        </div>
+      </div>
+
+      <!-- Participants -->
+      <div class="input-group">
+        <label class="input-label">Split with</label>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="flex items-center justify-between" style="padding:8px 12px; border:1.5px solid var(--indigo); border-radius:var(--radius-sm); background:var(--indigo-l);">
+            <div class="flex items-center gap-8">
+              <div class="avatar avatar-sm av-aisha">A</div>
+              <span style="font-size:13px;">Aisha</span>
+              <span class="badge badge-slate" style="font-size:10px;">Payer</span>
+            </div>
+            <span class="mono text-bold">₹4,000</span>
+          </div>
+          <div class="flex items-center justify-between" style="padding:8px 12px; border:1.5px solid var(--slate-200); border-radius:var(--radius-sm);">
+            <div class="flex items-center gap-8">
+              <div class="avatar avatar-sm av-rohan">R</div>
+              <span style="font-size:13px;">Rohan</span>
+            </div>
+            <span class="mono">₹4,000</span>
+          </div>
+          <div class="flex items-center justify-between" style="padding:8px 12px; border:1.5px solid var(--slate-200); border-radius:var(--radius-sm);">
+            <div class="flex items-center gap-8">
+              <div class="avatar avatar-sm av-priya">P</div>
+              <span style="font-size:13px;">Priya</span>
+            </div>
+            <span class="mono">₹4,000</span>
+          </div>
+          <div class="flex items-center justify-between" style="padding:8px 12px; border:1.5px solid var(--slate-200); border-radius:var(--radius-sm);">
+            <div class="flex items-center gap-8">
+              <div class="avatar avatar-sm av-dev">D</div>
+              <span style="font-size:13px;">Dev</span>
+            </div>
+            <span class="mono">₹4,000</span>
+          </div>
+          <div class="flex items-center justify-between" style="padding:8px 12px; border:1.5px solid var(--slate-200); border-radius:var(--radius-sm); opacity:.5;">
+            <div class="flex items-center gap-8">
+              <div class="avatar avatar-sm av-sam">S</div>
+              <span style="font-size:13px;">Sam</span>
+              <span class="badge badge-amber" style="font-size:10px;">Joined Apr 15</span>
+            </div>
+            <span class="text-xs text-muted">Not in period</span>
+          </div>
+        </div>
+        <div class="text-xs text-muted mt-4">Sam is excluded — this expense is before his join date (April 15).</div>
+      </div>
+
+      <div class="flex justify-between items-center" style="padding-top:8px; border-top:1px solid var(--slate-100);">
+        <div class="text-sm">
+          <span class="text-muted">Total: </span>
+          <span class="mono text-bold">₹24,000</span>
+          <span class="text-muted"> · 5 people · </span>
+          <span class="mono">₹4,800 each</span>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-primary">Save Expense</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+  9. MEMBERS MANAGEMENT
+════════════════════════════════════════════════════════════ -->
+<div class="screen-label">9 — Members Management</div>
+
+<div class="card">
+  <div class="flex justify-between items-center" style="margin-bottom:16px;">
+    <div class="card-title" style="margin:0;">Group Members</div>
+    <button class="btn btn-primary btn-sm">+ Add Member</button>

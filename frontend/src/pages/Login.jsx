@@ -1,113 +1,71 @@
 import React, { useState } from 'react';
-import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
-  const { loginWithGoogle, loginWithEmail, registerWithEmail } = useAuth();
+  const [email, setEmail] = useState('aisha@flatmates.in');
+  const [password, setPassword] = useState('password123');
+  const [error, setError] = useState('');
+  const { login } = useAuth();
   const navigate = useNavigate();
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
-  const [error, setError] = useState(null);
-
-  const handleSuccess = async (credentialResponse) => {
-    try {
-      await loginWithGoogle(credentialResponse.credential);
-      navigate('/');
-    } catch (err) {
-      setError("Google Login failed. Please try again.");
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    try {
-      if (isRegistering) {
-        await registerWithEmail(formData.name, formData.email, formData.password);
-        alert('Registration successful! Please sign in.');
-        setIsRegistering(false);
-      } else {
-        await loginWithEmail(formData.email, formData.password);
-        navigate('/');
-      }
-    } catch (err) {
-      setError(err.message || 'Authentication failed');
+    setError('');
+    const success = await login(email, password);
+    if (success) {
+      navigate('/');
+    } else {
+      setError('Invalid credentials');
     }
   };
 
   return (
-    <div className="login-container">
+    <div className="login-page">
       <div className="login-card">
-        <div className="login-logo">SE</div>
-        <h1 style={{ marginBottom: '8px', fontSize: '24px' }}>Welcome to SplitEase</h1>
-        <p style={{ color: 'var(--text2)', marginBottom: '32px' }}>
-          {isRegistering ? 'Create your account' : 'Sign in to your account'}
-        </p>
+        <div className="login-logo-big">S</div>
+        <div style={{ fontSize: '22px', fontWeight: 700, marginBottom: '4px' }}>Welcome back</div>
+        <div className="text-muted text-sm" style={{ marginBottom: '24px' }}>Sign in to your SplitEase account</div>
 
-        {error && <div className="alert" style={{ marginBottom: '16px' }}><div className="alert-title">{error}</div></div>}
+        {error && (
+          <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+            <span>⚠</span>
+            <span>{error}</span>
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} style={{ textAlign: 'left', marginBottom: '24px' }}>
-          {isRegistering && (
-            <div className="form-group">
-              <label>Name</label>
-              <input 
-                type="text" 
-                required 
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-              />
-            </div>
-          )}
-          <div className="form-group">
-            <label>Email</label>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="input-group">
+            <label className="input-label">Email address</label>
             <input 
+              className="input" 
               type="email" 
-              required 
-              value={formData.email}
-              onChange={e => setFormData({...formData, email: e.target.value})}
+              placeholder="aisha@example.com" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
             />
           </div>
-          <div className="form-group">
-            <label>Password</label>
+          <div className="input-group">
+            <label className="input-label">Password</label>
             <input 
+              className="input" 
               type="password" 
-              required 
-              value={formData.password}
-              onChange={e => setFormData({...formData, password: e.target.value})}
+              placeholder="••••••••" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '10px' }}>
-            {isRegistering ? 'Register' : 'Sign In'}
+          <button type="submit" className="btn btn-primary full-width" style={{ justifyContent: 'center', padding: '10px' }}>
+            Sign in
           </button>
         </form>
 
-        <div style={{ margin: '20px 0', position: 'relative', textAlign: 'center' }}>
-          <hr style={{ borderColor: 'var(--border2)' }}/>
-          <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: 'var(--bg2)', padding: '0 10px', color: 'var(--text3)', fontSize: '12px' }}>OR</span>
+        <div className="divider"></div>
+        <div className="text-sm text-muted" style={{ textAlign: 'center' }}>
+          Don't have an account? <span style={{ color: 'var(--indigo)', fontWeight: 500, cursor: 'pointer' }}>Create one →</span>
         </div>
-        
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-          <GoogleLogin
-            onSuccess={handleSuccess}
-            onError={() => setError('Google Login Failed')}
-            useOneTap
-            shape="rectangular"
-            theme="outline"
-            size="large"
-          />
-        </div>
-
-        <p style={{ fontSize: '13px', color: 'var(--text2)' }}>
-          {isRegistering ? 'Already have an account? ' : "Don't have an account? "}
-          <a 
-            href="#" 
-            onClick={(e) => { e.preventDefault(); setIsRegistering(!isRegistering); setError(null); }}
-            style={{ color: 'var(--green)', fontWeight: '600' }}
-          >
-            {isRegistering ? 'Sign In' : 'Sign Up'}
-          </a>
-        </p>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Groups from './pages/Groups';
 import Dashboard from './pages/Dashboard';
 import Import from './pages/Import';
+import Report from './pages/Report';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -24,35 +25,32 @@ function Layout({ children }) {
     navigate('/login');
   };
 
+  const getInitials = (name) => {
+    if (!name) return 'US';
+    return name.substring(0, 1).toUpperCase();
+  };
+
   return (
     <div>
-      <nav>
-        <a href="/" className="brand">
-          <div className="brand-logo">SE</div>
-          SplitEase
-        </a>
-        
-        <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          Dashboard
-        </NavLink>
-        
-        <NavLink to="/groups" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
-          Groups
-        </NavLink>
-
-        <NavLink to="/import" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-          Import CSV
-        </NavLink>
-        
-        <div className="nav-spacer"></div>
-        <button className="btn btn-sm" onClick={handleLogout} style={{ marginRight: '10px' }}>Logout</button>
-        <button className="avatar-btn" title={user?.name || "User"}>{user?.name ? user.name.substring(0,2).toUpperCase() : "US"}</button>
+      <nav className="topnav">
+        <div className="topnav-inner">
+          <div className="logo">
+            <div className="logo-mark">S</div>
+            SplitEase
+          </div>
+          <div className="nav-links">
+            <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>Dashboard</NavLink>
+            <NavLink to="/groups" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Groups</NavLink>
+            <NavLink to="/import" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Import CSV</NavLink>
+          </div>
+          <div className="flex items-center gap-8">
+            <button className="btn btn-outline btn-sm" onClick={handleLogout}>Logout</button>
+            <div className="nav-avatar" title={user?.name || "User"}>{getInitials(user?.name)}</div>
+          </div>
+        </div>
       </nav>
       
-      <main>
+      <main className="page-wrap">
         {children}
       </main>
     </div>
@@ -71,6 +69,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/groups" element={<Groups />} />
+                <Route path="/groups/:groupId/import-report/:batchId" element={<Report />} />
                 <Route path="/import" element={<Import />} />
               </Routes>
             </Layout>

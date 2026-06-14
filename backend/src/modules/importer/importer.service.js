@@ -37,10 +37,17 @@ export async function processUpload(groupId, userId, filePath) {
       .pipe(csv())
       .on('data', (data) => rows.push(data))
       .on('end', async () => {
-        // Clean up the temp file
-        fs.unlinkSync(filePath);
+        try {
+          // Clean up the temp file safely (Windows may lock it briefly)
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (e) {
+          console.warn('Failed to delete temp file immediately:', e.message);
+        }
 
-        // Fetch exchange rate helper
+        try {
+          // Fetch exchange rate helper
         const fetchExchangeRate = async (dateIso) => {
           try {
             const response = await axios.get(`https://api.frankfurter.app/${dateIso}?from=USD&to=INR`);
@@ -72,7 +79,16 @@ export async function processUpload(groupId, userId, filePath) {
         // Insert all rows into database
         await prisma.importRow.createMany({ data: processedRows });
 
+        const hasPending = processedRows.some(r => r.status === 'PENDING');
+        await prisma.importBatch.update({
+          where: { id: batch.id },
+          data: { status: hasPending ? 'NEEDS_REVIEW' : 'READY' }
+        });
+
         resolve(batch.id);
+        } catch (error) {
+          reject(error);
+        }
       })
       .on('error', reject);
   });

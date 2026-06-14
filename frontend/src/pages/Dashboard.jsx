@@ -1,41 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { getGroups, getGroupBalances } from '../api';
+import { getGroups, getDashboardMetrics } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { getAvatarClass, getInitials } from '../utils/avatar';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
-  const [metrics, setMetrics] = useState({ totalPaid: 0, totalOwed: 0, netBalance: 0 });
+  const [metrics, setMetrics] = useState({ totalPaid: 0, totalOwed: 0, netBalance: 0, groupsCount: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const { groups } = await getGroups();
-        setGroups(groups || []);
+        const [groupsData, metricsData] = await Promise.all([
+          getGroups(),
+          getDashboardMetrics()
+        ]);
         
-        let totalPaid = 0;
-        let totalOwed = 0;
-        let netBalance = 0;
-
-        // Fetch balances for each group to aggregate
-        for (const group of groups || []) {
-          try {
-            const { balances } = await getGroupBalances(group.id);
-            const myBalance = balances.find(b => b.user.id === user.id);
-            if (myBalance) {
-              totalPaid += parseFloat(myBalance.totalPaid);
-              totalOwed += parseFloat(myBalance.totalOwed);
-              netBalance += parseFloat(myBalance.netBalance);
-            }
-          } catch (e) {
-            console.error(`Failed to fetch balances for group ${group.id}`);
-          }
-        }
-        
-        setMetrics({ totalPaid, totalOwed, netBalance });
+        setGroups(groupsData.groups || []);
+        setMetrics(metricsData);
       } catch (err) {
         console.error("Dashboard error:", err);
       } finally {
@@ -53,59 +38,78 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="page active">
-      <div className="page-header">
-        <div>
-          <div className="page-title">Dashboard</div>
-          <div className="page-sub">Welcome back, {user?.name}!</div>
-        </div>
-      </div>
+    <div>
+      <div className="screen-label">Dashboard</div>
       
-      <div className="card" style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>Global Finances</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
-          <div style={{ padding: '16px', background: 'var(--bg2)', borderRadius: 'var(--radius)' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Total You Paid</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text1)' }}>${metrics.totalPaid.toFixed(2)}</div>
+      {/* Stat Row */}
+      <div className="grid-4" style={{ marginBottom: '20px' }}>
+        <div className="stat-card">
+          <div className="stat-label">Global Net Balance</div>
+          <div className={`stat-value ${metrics.netBalance >= 0 ? 'amount-positive' : 'amount-negative'}`}>
+            {metrics.netBalance >= 0 ? '+' : '-'}₹{Math.abs(metrics.netBalance).toFixed(2)}
           </div>
-          <div style={{ padding: '16px', background: 'var(--bg2)', borderRadius: 'var(--radius)' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Total You Owe</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text1)' }}>${metrics.totalOwed.toFixed(2)}</div>
-          </div>
-          <div style={{ padding: '16px', background: 'var(--bg2)', borderRadius: 'var(--radius)' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Global Net Balance</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: metrics.netBalance >= 0 ? 'var(--green)' : 'var(--red)' }}>
-              {metrics.netBalance >= 0 ? '+' : '-'}${Math.abs(metrics.netBalance).toFixed(2)}
-            </div>
-          </div>
+          <div className="stat-sub">across {metrics.groupsCount} groups</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Total You Paid</div>
+          <div className="stat-value amount-positive">₹{metrics.totalPaid.toFixed(2)}</div>
+          <div className="stat-sub">lifetime</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Total You Owe</div>
+          <div className="stat-value amount-negative">₹{metrics.totalOwed.toFixed(2)}</div>
+          <div className="stat-sub">lifetime</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Active groups</div>
+          <div className="stat-value" style={{ color: 'var(--slate-800)' }}>{metrics.groupsCount}</div>
+          <div className="stat-sub">Your collaborative spaces</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+      {/* Groups + Recent */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        {/* Groups */}
         <div className="card">
-          <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>Your Groups</h2>
+          <div className="flex justify-between items-center" style={{ marginBottom: '16px' }}>
+            <div className="card-title" style={{ margin: 0 }}>Your Groups</div>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate('/groups')}>+ New Group</button>
+          </div>
+
           {groups.length === 0 ? (
-            <p style={{ color: 'var(--text3)' }}>You are not part of any groups yet.</p>
+            <p className="text-muted text-sm">You are not part of any groups yet.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {groups.map(group => (
-                <div key={group.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+            groups.map(group => (
+              <div key={group.id} className="card card-sm" style={{ marginBottom: '10px', cursor: 'pointer' }} onClick={() => navigate('/groups')}>
+                <div className="flex justify-between items-center">
                   <div>
-                    <div style={{ fontWeight: '500' }}>{group.name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text3)' }}>{group.description || 'No description'}</div>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{group.name}</div>
+                    <div className="text-sm text-muted mt-4">{group.description || 'No description'} · {group.currency} default</div>
                   </div>
-                  <button className="btn btn-sm" onClick={() => navigate('/groups')}>Open</button>
+                  <div style={{ textAlign: 'right' }}>
+                     <button className="btn btn-ghost btn-sm">Open →</button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </div>
-        
+
+        {/* Recent Activity / Quick Actions */}
         <div className="card">
-          <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>Quick Actions</h2>
+          <div className="card-title">Quick Actions</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-             <button className="btn btn-primary" onClick={() => navigate('/groups')} style={{ width: '100%', justifyContent: 'flex-start' }}>Create a New Group</button>
-             <button className="btn" onClick={() => navigate('/import')} style={{ width: '100%', justifyContent: 'flex-start' }}>Import CSV Statement</button>
+            <button className="btn btn-primary full-width" onClick={() => navigate('/groups')} style={{ justifyContent: 'center', padding: '12px' }}>
+              Create a New Group
+            </button>
+            <button className="btn btn-outline full-width" onClick={() => navigate('/import')} style={{ justifyContent: 'center', padding: '12px' }}>
+              Import CSV Statement
+            </button>
+          </div>
+          <div className="divider"></div>
+          <div className="alert alert-info">
+             <span>💡</span>
+             <span>Tip: Drop your bank CSV in the Import tab to auto-create groups and members instantly.</span>
           </div>
         </div>
       </div>

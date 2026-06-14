@@ -78,19 +78,21 @@ export async function createExpense(groupId, expenseData) {
 }
 
 // Importer APIs
-export async function uploadCSV(groupId, file) {
+export async function uploadCSV(file) {
   const formData = new FormData();
   formData.append('file', file);
   
   const token = getAuthToken();
-  const res = await fetch(`${BASE_URL}/groups/${groupId}/import/upload`, {
+  const res = await fetch(`${BASE_URL}/import/upload`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
     body: formData
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to upload CSV');
-  return data;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to upload CSV');
+  }
+  return res.json();
 }
 
 export async function getBatchStatus(groupId, batchId) {
@@ -116,4 +118,16 @@ export async function recordSettlement(groupId, payerId, receiverId, amount) {
     method: 'POST',
     body: JSON.stringify({ payerId, receiverId, amount })
   });
+}
+
+export async function getGroupSettlements(groupId) {
+  return apiFetch(`/groups/${groupId}/settlements`);
+}
+
+export async function getDashboardMetrics() {
+  return apiFetch('/users/me/dashboard');
+}
+
+export async function getBatchRows(groupId, batchId) {
+  return apiFetch(`/groups/${groupId}/import/batches/${batchId}`);
 }
