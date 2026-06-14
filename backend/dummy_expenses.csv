@@ -1,0 +1,6 @@
+Date,Description,Amount,Currency,Paid By
+2023-10-01,Groceries,45.50,INR,test@example.com
+2023-10-02,Flight Ticket,100,USD,test@example.com
+2023-10-03,Mystery Expense,-10.00,INR,test@example.com
+2023-10-04,Missing Payer,50.00,INR,
+2023-10-05,Unknown User,20.00,INR,fake@user.com

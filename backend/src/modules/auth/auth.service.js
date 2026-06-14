@@ -14,7 +14,7 @@ async function register(email, password, name) {
     throw new Error('User already exists');
   }
   
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await bcrypt.hash(password, 10);
   
   return prisma.user.create({
     data: {
@@ -102,7 +102,7 @@ async function generateTokens(user) {
   const accessToken = jwt.sign(
     { userId: user.id },
     process.env.JWT_SECRET || 'fallback_secret',
-    { expiresIn: '15m' }
+    { expiresIn: '7d' }
   );
   
   const refreshToken = crypto.randomBytes(40).toString('hex');

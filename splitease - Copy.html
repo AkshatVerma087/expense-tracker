@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SplitEase — Shared Expenses</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --green:#1D9E75;--green-light:#E1F5EE;--green-dark:#0F6E56;
+    --red:#D85A30;--red-light:#FAECE7;
+    --blue:#185FA5;--blue-light:#E6F1FB;
+    --amber:#854F0B;--amber-light:#FAEEDA;--amber-mid:#FAC775;
+    --pink:#993556;--pink-light:#FBEAF0;
+    --border:#e2e2e2;--border2:#d0d0d0;
+    --bg:#f7f7f5;--bg2:#fff;--bg3:#f0f0ee;
+    --text:#1a1a1a;--text2:#5a5a5a;--text3:#888;
+    --radius:8px;--radius-lg:12px;
+    --shadow:0 1px 4px rgba(0,0,0,.07);
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+
+  /* NAV */
+  nav{display:flex;align-items:center;gap:4px;padding:0 20px;height:52px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;margin-right:16px;text-decoration:none;color:var(--text)}
+  .brand-logo{width:28px;height:28px;background:var(--green);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700}
+  .nav-link{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--radius);font-size:13px;color:var(--text2);cursor:pointer;border:none;background:none;transition:.15s;white-space:nowrap;font-family:inherit}
+  .nav-link:hover{background:var(--bg3);color:var(--text)}
+  .nav-link.active{background:var(--bg3);color:var(--text);font-weight:500}
+  .nav-link svg{width:15px;height:15px;flex-shrink:0}
+  .nav-badge{background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:2px}
+  .nav-spacer{flex:1}
+  .avatar-btn{width:30px;height:30px;border-radius:50%;background:var(--green-light);border:none;cursor:pointer;font-size:11px;font-weight:600;color:var(--green-dark);display:flex;align-items:center;justify-content:center}
+
+  /* PAGES */
+  .page{display:none;padding:20px;max-width:980px;margin:0 auto}
+  .page.active{display:block}
+
+  /* BUTTONS */
+  .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--radius);font-size:13px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap}
+  .btn:hover{background:var(--bg3)}
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:var(--green);border-color:var(--green);color:#fff}
+  .btn-primary:hover{background:var(--green-dark);border-color:var(--green-dark)}
+  .btn-danger{background:var(--red-light);border-color:#f0b4a0;color:var(--red)}
+  .btn-danger:hover{background:#f5d0c4}
+  .btn-sm{padding:4px 9px;font-size:12px}
+  .btn svg{width:14px;height:14px}
+
+  /* CARDS */
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:14px}
+  .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .card-title{font-size:14px;font-weight:600;color:var(--text)}
+
+  /* METRICS */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:13px 15px}
+  .metric-label{font-size:11px;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+  .metric-val{font-size:21px;font-weight:600}
+
+  /* GRID */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.two-col,.metrics{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.metrics{grid-template-columns:1fr 1fr}}
+
+  /* TABLE */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:8px 10px;color:var(--text3);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border)}
+  td{padding:9px 10px;border-bottom:1px solid var(--border)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--bg3)}
+
+  /* PILLS */
+  .pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600}
+  .pill-equal{background:var(--green-light);color:var(--green-dark)}
+  .pill-pct{background:var(--blue-light);color:var(--blue)}
+  .pill-exact{background:var(--amber-light);color:var(--amber)}
+  .pill-usd{background:var(--pink-light);color:var(--pink)}
+  .pill-success{background:var(--green-light);color:var(--green-dark)}
+  .pill-warn{background:var(--amber-light);color:var(--amber)}
+  .pill-danger{background:var(--red-light);color:var(--red)}
+
+  /* ALERT */
+  .alert{display:flex;gap:10px;background:var(--amber-light);border:1px solid var(--amber-mid);border-radius:var(--radius-lg);padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--amber)}
+  .alert-title{font-weight:600;margin-bottom:2px}
+  .alert a{color:var(--amber);font-weight:600;cursor:pointer}
+
+  /* FORM */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--bg2);border-radius:var(--radius-lg);padding:22px 24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .modal-title{font-size:16px;font-weight:600}
+  .modal-close{border:none;background:none;font-size:20px;cursor:pointer;color:var(--text3);padding:2px 6px;border-radius:4px}
+  .modal-close:hover{background:var(--bg3)}
+  .form-group{margin-bottom:14px}
+  label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:inherit;color:var(--text);background:var(--bg2);transition:.15s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.12)}
+  textarea{resize:vertical;min-height:60px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .checkbox-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .checkbox-item{display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer}
+  .checkbox-item input{width:auto}
+
+  /* BALANCE ROWS */
+  .balance-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+  .balance-row:last-child{border-bottom:none}
+  .av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+  .av-a{background:var(--green-light);color:var(--green-dark)}
+  .av-r{background:var(--blue-light);color:var(--blue)}
+  .av-p{background:var(--amber-light);color:var(--amber)}
+  .av-m{background:var(--pink-light);color:var(--pink)}
+  .av-d{background:#EEE;color:#555}
+  .av-s{background:#E8EEF8;color:#3A5A9A}
+
+  /* IMPORT */
+  .drop-zone{border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:30px;text-align:center;background:var(--bg3);cursor:pointer;transition:.15s}
+  .drop-zone:hover,.drop-zone.drag{border-color:var(--green);background:var(--green-light)}
+  .drop-zone svg{width:36px;height:36px;color:var(--text3);margin-bottom:10px}
+  .anomaly-item{border:1px solid var(--border);border-radius:var(--radius);padding:11px 14px;margin-bottom:8px;font-size:13px}
+  .anomaly-item.warn{border-left:3px solid var(--amber-mid);background:var(--amber-light)}
+  .anomaly-item.danger{border-left:3px solid #f0a090;background:var(--red-light)}
+  .anomaly-item.info{border-left:3px solid #90bce0;background:var(--blue-light)}
+  .anomaly-title{font-weight:600;margin-bottom:3px}
+  .anomaly-actions{display:flex;gap:7px;margin-top:8px}
+
+  /* MISC */
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+  .page-title{font-size:17px;font-weight:600}
+  .page-sub{font-size:12px;color:var(--text3);margin-top:2px}
+  .empty{text-align:center;padding:32px 16px;color:var(--text3);font-size:13px}
+  .empty svg{width:32px;height:32px;margin-bottom:8px;opacity:.4}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+  .settle-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .settle-row:last-child{border-bottom:none}
+  .toast{position:fixed;bottom:24px;right:24px;background:#222;color:#fff;padding:10px 16px;border-radius:var(--radius-lg);font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+  .toast.show{opacity:1}
+  .member-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;background:var(--green-light);color:var(--green-dark);margin:2px}
+  .group-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;cursor:pointer;transition:.15s}
+  .group-card:hover{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.09)}
+  .group-card.active-group{border-color:var(--green);border-width:2px}
+  .tab-bar{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px}
+  .tab{padding:7px 14px;font-size:13px;border:none;background:none;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit}
+  .tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:500}
+  .progress{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:4px}
+  .progress-bar{height:100%;background:var(--green);border-radius:2px;transition:width .6s}
+  hr{border:none;border-top:1px solid var(--border);margin:14px 0}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="brand" onclick="return false">
+    <div class="brand-logo">SE</div>
+    SplitEase
+  </a>
+  <button class="nav-link active" onclick="showPage('dashboard',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Dashboard
+  </button>
+  <button class="nav-link" onclick="showPage('groups',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
+    Groups
+  </button>
+  <button class="nav-link" onclick="showPage('expenses',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="11" y2="17"/></svg>
+    Expenses
+  </button>
+  <button class="nav-link" onclick="showPage('settlements',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
+    Settlements
+  </button>
+  <button class="nav-link" onclick="showPage('import',this)" id="nav-import">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Import
+    <span class="nav-badge" id="import-badge">!</span>
+  </button>
+  <div class="nav-spacer"></div>
+  <button class="btn btn-primary btn-sm" onclick="openModal('add-expense-modal')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Add expense
+  </button>
+  <button class="avatar-btn" title="Logged in as Aisha">AI</button>
+</nav>
+
+<!-- ===== DASHBOARD PAGE ===== -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Flat group — Feb to Apr 2025</div>
+      <div class="page-sub">Aisha · Rohan · Priya · Dev · Meera (left Mar) · Sam (joined Apr)</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="chip">Feb – Apr 2025</span>
+      <button class="btn btn-sm" onclick="showPage('import',document.querySelector('[onclick*=import]'))">Import CSV</button>
+    </div>
+  </div>
+
+  <div class="alert" id="dash-alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div>
+      <div class="alert-title">3 anomalies need your review from the CSV import</div>
+      Duplicate entry on 14 Mar · USD expense missing FX rate · Settlement logged as expense.
+      <a onclick="showPage('import',document.querySelector('[onclick*=import]'))">Review all →</a>
+    </div>
+  </div>
+
+  <div class="metrics" id="dash-metrics"></div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recent expenses</span>
+        <button class="btn btn-sm" onclick="showPage('expenses',document.querySelectorAll('.nav-link')[2])">See all</button>
+      </div>
+      <div id="dash-recent-expenses"></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Who owes whom</span>
+          <button class="btn btn-sm" onclick="showPage('settlements',document.querySelectorAll('.nav-link')[3])">Settle up</button>
+        </div>
+        <div id="dash-settlements"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Individual balances</span></div>
+        <div id="dash-balances"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GROUPS PAGE ===== -->
+<div class="page" id="page-groups">
+  <div class="page-header">
+    <div><div class="page-title">Groups</div><div class="page-sub">Manage your expense groups and members</div></div>
+    <button class="btn btn-primary" onclick="openModal('add-group-modal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New group
+    </button>
+  </div>
+  <div id="groups-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
+
+  <div class="card" id="group-detail" style="margin-top:16px;display:none">
+    <div class="card-header">
+      <span class="card-title" id="gd-title">Group details</span>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-sm" onclick="openAddMemberModal()">Add member</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSelectedGroup()">Delete group</button>
+      </div>
+    </div>
+    <div id="gd-members"></div>
+    <hr>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:500">MEMBER HISTORY</div>
+    <div id="gd-history"></div>
+  </div>
+</div>
+
+<!-- ===== EXPENSES PAGE ===== -->
+<div class="page" id="page-expenses">
+  <div class="page-header">
+    <div><div class="page-title">Expenses</div><div class="page-sub" id="exp-count"></div></div>
+    <div style="display:flex;gap:8px">
+      <select id="filter-group" onchange="renderExpenses()" style="width:auto;font-size:13px;padding:6px 10px">
+        <option value="">All groups</option>
+      </select>
+      <select id="filter-split" onchange="renderExpenses()" style="width:auto;font-size:13px;padding:6px 10px">
+        <option value="">All split types</option>
+        <option value="equal">Equal</option>
+        <option value="percent">Percent</option>
+        <option value="exact">Exact</option>
+        <option value="usd">USD</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('add-expense-modal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add expense
+      </button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table>
+      <thead><tr>
+        <th>Date</th><th>Description</th><th>Paid by</th><th>Split</th><th>Amount</th><th>Your share</th><th style="width:80px"></th>
+      </tr></thead>
+      <tbody id="expenses-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== SETTLEMENTS PAGE ===== -->
+<div class="page" id="page-settlements">
+  <div class="page-header">
+    <div><div class="page-title">Settlements</div><div class="page-sub">Simplified debts — minimum payments to clear all balances</div></div>
+    <button class="btn btn-primary" onclick="openModal('record-payment-modal')">Record payment</button>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Pending settlements</span></div>
+      <div id="pending-settlements"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Balance summary</span></div>
+      <div id="balance-summary"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Payment history</span></div>
+    <div id="payment-history"></div>
+  </div>
+</div>
+
+<!-- ===== IMPORT PAGE ===== -->
+<div class="page" id="page-import">
+  <div class="page-header">
+    <div><div class="page-title">Import CSV</div><div class="page-sub">Upload expenses_export.csv — anomalies are detected and surfaced for your approval</div></div>
+  </div>
+
+  <div class="two-col" style="margin-bottom:14px">
+    <div class="metric"><div class="metric-label">Rows processed</div><div class="metric-val" id="imp-rows">0</div></div>
+    <div class="metric"><div class="metric-label">Anomalies found</div><div class="metric-val" style="color:var(--amber)" id="imp-anomalies">0</div></div>
+    <div class="metric"><div class="metric-label">Imported ok</div><div class="metric-val" style="color:var(--green)" id="imp-ok">0</div></div>
+    <div class="metric"><div class="metric-label">Pending review</div><div class="metric-val" style="color:var(--red)" id="imp-pending">0</div></div>
+  </div>
+
+  <div class="card">
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleDrop(event)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;color:var(--text3);margin-bottom:8px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div style="font-weight:500;margin-bottom:4px">Drop your CSV here or click to browse</div>
+      <div style="font-size:12px;color:var(--text3)">Accepts .csv files · All anomalies will be shown before import</div>
+      <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleFileSelect(this)">
+    </div>
+    <div style="margin-top:12px;text-align:center">
+      <button class="btn btn-sm" onclick="loadDemoCSV()">Load demo CSV (expenses_export.csv)</button>
+    </div>
+  </div>
+
+  <div id="import-anomalies-section" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Anomaly review</span>
+        <div style="display:flex;gap:7px">
+          <button class="btn btn-sm" onclick="approveAll()">Approve all safe</button>
+          <button class="btn btn-sm btn-primary" onclick="finishImport()">Confirm import</button>
+        </div>
+      </div>
+      <div id="anomaly-list"></div>
+    </div>
+  </div>
+
+  <div id="import-report-section" style="display:none">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Import report</span><button class="btn btn-sm" onclick="downloadReport()">Download report</button></div>
+      <div id="import-report"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Add Expense -->
+<div class="modal-overlay" id="add-expense-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add expense</span>
+      <button class="modal-close" onclick="closeModal('add-expense-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <input type="text" id="exp-desc" placeholder="e.g. March electricity">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="exp-date">
+      </div>
+      <div class="form-group">
+        <label>Group</label>
+        <select id="exp-group"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" id="exp-amount" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="exp-currency">
+          <option value="INR">₹ INR</option>
+          <option value="USD">$ USD</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Paid by</label>
+      <select id="exp-paidby"></select>
+    </div>
+    <div class="form-group">
+      <label>Split type</label>
+      <select id="exp-split" onchange="renderSplitInputs()">
+        <option value="equal">Equal split</option>
+        <option value="percent">By percentage</option>
+        <option value="exact">Exact amounts</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Split between</label>
+      <div class="checkbox-group" id="split-members"></div>
+    </div>
+    <div id="split-detail" style="margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('add-expense-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExpense()">Save expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Group -->
+<div class="modal-overlay" id="add-group-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Create group</span>
+      <button class="modal-close" onclick="closeModal('add-group-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label>Group name</label>
+      <input type="text" id="grp-name" placeholder="e.g. Flat — 2025">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <input type="text" id="grp-desc" placeholder="Optional description">
+    </div>
+    <div class="form-group">
+      <label>Initial members</label>
+      <div class="checkbox-group" id="grp-members-check"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('add-group-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGroup()">Create group</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Member -->
+<div class="modal-overlay" id="add-member-modal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <span class="modal-title">Add member to group</span>
+      <button class="modal-close" onclick="closeModal('add-member-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label>Member</label>
+      <select id="add-member-select"></select>
+    </div>
+    <div class="form-group">
+      <label>Joined on</label>
+      <input type="date" id="add-member-date">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('add-member-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAddMember()">Add member</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record Payment -->
+<div class="modal-overlay" id="record-payment-modal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <span class="modal-title">Record payment</span>
+      <button class="modal-close" onclick="closeModal('record-payment-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label>From (who pays)</label>
+      <select id="pay-from"></select>
+    </div>
+    <div class="form-group">
+      <label>To (who receives)</label>
+      <select id="pay-to"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Amount (₹)</label>
+        <input type="number" id="pay-amount" placeholder="0.00" min="0">
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="pay-date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Note (optional)</label>
+      <input type="text" id="pay-note" placeholder="e.g. UPI transfer">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('record-payment-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="recordPayment()">Record payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Expense Detail -->
+<div class="modal-overlay" id="expense-detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="ed-title">Expense detail</span>
+      <button class="modal-close" onclick="closeModal('expense-detail-modal')">×</button>
+    </div>
+    <div id="ed-body"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-danger btn-sm" id="ed-delete-btn">Delete expense</button>
+      <button class="btn" onclick="closeModal('expense-detail-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// DATA STORE
+// ============================================================
+const MEMBERS = [
+  {id:'aisha', name:'Aisha', initials:'AI', avatarClass:'av-a', joinDate:'2025-02-01', leaveDate:null},
+  {id:'rohan', name:'Rohan', initials:'RO', avatarClass:'av-r', joinDate:'2025-02-01', leaveDate:null},
+  {id:'priya', name:'Priya', initials:'PR', avatarClass:'av-p', joinDate:'2025-02-01', leaveDate:null},
+  {id:'dev',   name:'Dev',   initials:'DV', avatarClass:'av-d', joinDate:'2025-02-01', leaveDate:null},
+  {id:'meera', name:'Meera', initials:'ME', avatarClass:'av-m', joinDate:'2025-02-01', leaveDate:'2025-03-31'},
+  {id:'sam',   name:'Sam',   initials:'SA', avatarClass:'av-s', joinDate:'2025-04-15', leaveDate:null},
+];
+
+const USD_TO_INR = 83.5;
+
+let state = {
+  groups: [
+    {id:'g1', name:'Flat — 2025', desc:'Main flat expenses', members:[
+      {memberId:'aisha', joinDate:'2025-02-01', leaveDate:null},
+      {memberId:'rohan', joinDate:'2025-02-01', leaveDate:null},
+      {memberId:'priya', joinDate:'2025-02-01', leaveDate:null},
+      {memberId:'dev',   joinDate:'2025-02-01', leaveDate:null},
+      {memberId:'meera', joinDate:'2025-02-01', leaveDate:'2025-03-31'},
+      {memberId:'sam',   joinDate:'2025-04-15', leaveDate:null},
+    ]}
+  ],
+  expenses: [
+    {id:'e1', desc:'February rent', date:'2025-02-01', groupId:'g1', paidBy:'aisha', amount:30000, currency:'INR', splitType:'equal', splits:{aisha:6000,rohan:6000,priya:6000,dev:6000,meera:6000}, note:''},
+    {id:'e2', desc:'February electricity', date:'2025-02-05', groupId:'g1', paidBy:'rohan', amount:4200, currency:'INR', splitType:'equal', splits:{aisha:840,rohan:840,priya:840,dev:840,meera:840}, note:''},
+    {id:'e3', desc:'Groceries — Feb', date:'2025-02-14', groupId:'g1', paidBy:'priya', amount:3600, currency:'INR', splitType:'exact', splits:{aisha:900,rohan:1200,priya:900,meera:600}, note:'Priya and Meera shared less'},
+    {id:'e4', desc:'March rent', date:'2025-03-01', groupId:'g1', paidBy:'aisha', amount:30000, currency:'INR', splitType:'equal', splits:{aisha:6000,rohan:6000,priya:6000,dev:6000,meera:6000}, note:''},
+    {id:'e5', desc:'March electricity', date:'2025-03-05', groupId:'g1', paidBy:'aisha', amount:3800, currency:'INR', splitType:'equal', splits:{aisha:760,rohan:760,priya:760,dev:760,meera:760}, note:''},
+    {id:'e6', desc:'Internet — March', date:'2025-03-08', groupId:'g1', paidBy:'dev', amount:1200, currency:'INR', splitType:'equal', splits:{aisha:240,rohan:240,priya:240,dev:240,meera:240}, note:''},
+    {id:'e7', desc:'Goa trip — hotel', date:'2025-03-20', groupId:'g1', paidBy:'priya', amount:320, currency:'USD', splitType:'percent', splits:{priya:25,rohan:25,aisha:25,dev:25}, note:'USD — converted at ₹83.5', usdRate:83.5},
+    {id:'e8', desc:'Goa trip — food & activities', date:'2025-03-22', groupId:'g1', paidBy:'dev', amount:150, currency:'USD', splitType:'equal', splits:{priya:37.5,rohan:37.5,aisha:37.5,dev:37.5}, note:'USD', usdRate:83.5},
+    {id:'e9', desc:'Team dinner (March)', date:'2025-03-22', groupId:'g1', paidBy:'rohan', amount:3600, currency:'INR', splitType:'exact', splits:{aisha:800,rohan:1000,priya:800,dev:600,meera:400}, note:''},
+    {id:'e10', desc:'April rent', date:'2025-04-01', groupId:'g1', paidBy:'aisha', amount:30000, currency:'INR', splitType:'equal', splits:{aisha:7500,rohan:7500,priya:7500,dev:7500}, note:'Meera left; Sam not yet moved in'},
+    {id:'e11', desc:'Internet — April', date:'2025-04-03', groupId:'g1', paidBy:'sam', amount:1200, currency:'INR', splitType:'equal', splits:{aisha:300,rohan:300,priya:300,sam:300}, note:'Sam joined mid-Apr — only April expenses'},
+    {id:'e12', desc:'April electricity', date:'2025-04-05', groupId:'g1', paidBy:'priya', amount:3600, currency:'INR', splitType:'equal', splits:{aisha:900,rohan:900,priya:900,sam:900}, note:''},
+  ],
+  payments: [],
+  importAnomalies: [],
+  importReport: [],
+  selectedGroupId: 'g1',
+};
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function getMember(id){ return MEMBERS.find(m=>m.id===id) }
+function fmt(n){ return '₹'+Math.round(n).toLocaleString('en-IN') }
+function fmtUSD(n){ return '$'+n.toFixed(2) }
+function dateStr(d){ return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'}) }
+function uid(){ return 'x'+Math.random().toString(36).slice(2,9) }
+
+function showToast(msg, dur=2500){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+function showPage(name, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  renderPage(name);
+}
+
+function renderPage(name){
+  if(name==='dashboard') renderDashboard();
+  else if(name==='groups') renderGroups();
+  else if(name==='expenses') renderExpenses();
+  else if(name==='settlements') renderSettlements();
+  else if(name==='import') renderImportPage();
+}
+
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  if(id==='add-expense-modal') initExpenseModal();
+  if(id==='add-group-modal') initGroupModal();
+  if(id==='record-payment-modal') initPaymentModal();
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open') }
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('open') });
+});
+
+// ============================================================
+// BALANCE ENGINE
+// ============================================================
+function getExpenseInINR(exp){
+  if(exp.currency==='USD') return exp.amount*(exp.usdRate||USD_TO_INR);
+  return exp.amount;
+}
+
+function computeBalances(){
+  const bal={};
+  MEMBERS.forEach(m=>{ bal[m.id]=0 });
+
+  state.expenses.forEach(exp=>{
+    const totalINR = getExpenseInINR(exp);
+    // payer gets credited
+    bal[exp.paidBy] = (bal[exp.paidBy]||0) + totalINR;
+    // each participant debited their share
+    const splits = exp.splits;
+    const splitType = exp.splitType;
+    if(splitType==='percent'){
+      const totalPct = Object.values(splits).reduce((a,b)=>a+b,0);
+      Object.entries(splits).forEach(([m,pct])=>{
+        bal[m] = (bal[m]||0) - (pct/totalPct)*totalINR;
+      });
+    } else if(splitType==='equal'){
+      const n = Object.keys(splits).length;
+      Object.keys(splits).forEach(m=>{
+        bal[m] = (bal[m]||0) - totalINR/n;
+      });
+    } else { // exact / usd
+      // For USD exact splits stored as USD amounts
+      if(exp.currency==='USD'){
+        Object.entries(splits).forEach(([m,s])=>{
+          bal[m] = (bal[m]||0) - s*(exp.usdRate||USD_TO_INR);
+        });
+      } else {
+        Object.entries(splits).forEach(([m,s])=>{
+          bal[m] = (bal[m]||0) - s;
+        });
+      }
+    }
+  });
+
+  // apply recorded payments
+  state.payments.forEach(p=>{
+    bal[p.from] = (bal[p.from]||0) + p.amount;
+    bal[p.to]   = (bal[p.to]||0)   - p.amount;
+  });
+
+  return bal;
+}
+
+function simplifyDebts(bal){
+  // Greedy min-cash-flow
+  const creditors=[], debtors=[];
+  Object.entries(bal).forEach(([m,b])=>{
+    if(b>0.5) creditors.push({m, b});
+    else if(b<-0.5) debtors.push({m, b:-b});
+  });
+  creditors.sort((a,b)=>b.b-a.b);
+  debtors.sort((a,b)=>b.b-a.b);
+  const txns=[];
+  let i=0,j=0;
+  while(i<creditors.length && j<debtors.length){
+    const amt=Math.min(creditors[i].b, debtors[j].b);
+    if(amt>0.5) txns.push({from:debtors[j].m, to:creditors[i].m, amount:Math.round(amt)});
+    creditors[i].b-=amt; debtors[j].b-=amt;
+    if(creditors[i].b<0.5) i++;
+    if(debtors[j].b<0.5) j++;
+  }
+  return txns;
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard(){
+  const bal = computeBalances();
+  const me = 'aisha';
+  const myBal = bal[me]||0;
+
+  // metrics
+  const totalSpend = state.expenses.reduce((s,e)=>s+getExpenseInINR(e),0);
+  const iPaid = state.expenses.filter(e=>e.paidBy===me).reduce((s,e)=>s+getExpenseInINR(e),0);
+  document.getElementById('dash-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Total group spend</div><div class="metric-val">${fmt(totalSpend)}</div></div>
+    <div class="metric"><div class="metric-label">You paid</div><div class="metric-val">${fmt(iPaid)}</div></div>
+    <div class="metric"><div class="metric-label">${myBal>=0?'You are owed':'You owe'}</div>
+      <div class="metric-val" style="color:${myBal>=0?'var(--green)':'var(--red)'}">
+        ${fmt(Math.abs(myBal))}
+      </div></div>
+    <div class="metric"><div class="metric-label">Expenses</div><div class="metric-val">${state.expenses.length}</div></div>
+  `;
+
+  // recent expenses (last 5)
+  const recent = [...state.expenses].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  document.getElementById('dash-recent-expenses').innerHTML = recent.map(exp=>{
+    const m=getMember(exp.paidBy);
+    const inr=getExpenseInINR(exp);
+    const myShare=getMyShare(exp,me);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="showExpenseDetail('${exp.id}')">
+      <div class="av ${m?.avatarClass||'av-d'}" style="flex-shrink:0">${m?.initials||'?'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${exp.desc}</div>
+        <div style="font-size:11px;color:var(--text3)">${dateStr(exp.date)} · <span class="pill pill-${exp.currency==='USD'?'usd':exp.splitType}">${exp.splitType}${exp.currency==='USD'?' (USD)':''}</span></div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:500">${exp.currency==='USD'?fmtUSD(exp.amount)+' →':''} ${fmt(inr)}</div>
+        ${myShare?`<div style="font-size:11px;color:var(--text3)">Your share: ${fmt(myShare)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">No expenses yet</div>';
+
+  // settlements
+  const txns = simplifyDebts(bal);
+  document.getElementById('dash-settlements').innerHTML = txns.length ? txns.slice(0,4).map(t=>{
+    const fm=getMember(t.from), tm=getMember(t.to);
+    return `<div class="settle-row">
+      <div class="av ${fm?.avatarClass||'av-d'}">${fm?.initials}</div>
+      <span style="font-weight:500">${fm?.name}</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:var(--text3)"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>
+      <span style="font-weight:500">${tm?.name}</span>
+      <span style="margin-left:auto;font-weight:600;color:var(--red)">${fmt(t.amount)}</span>
+      <button class="btn btn-sm" onclick="quickSettle('${t.from}','${t.to}',${t.amount})">Settle</button>
+    </div>`;
+  }).join('') : '<div class="empty" style="padding:16px">All settled up! 🎉</div>';
+
+  // individual balances
+  document.getElementById('dash-balances').innerHTML = MEMBERS.map(m=>{
+    const b=bal[m.id]||0;
+    return `<div class="balance-row">
+      <div class="av ${m.avatarClass}">${m.initials}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${m.name}${m.leaveDate?' <span style="font-size:10px;color:var(--text3)">(left)</span>':''}</div>
+      </div>
+      <span style="font-weight:600;color:${b>=0?'var(--green)':'var(--red)'}">${b>=0?'+':''}${fmt(b)}</span>
+    </div>`;
+  }).join('');
+}
+
+function getMyShare(exp, me){
+  if(!exp.splits[me]) return null;
+  if(exp.splitType==='percent'){
+    const total=Object.values(exp.splits).reduce((a,b)=>a+b,0);
+    return (exp.splits[me]/total)*getExpenseInINR(exp);
+  }
+  if(exp.currency==='USD') return exp.splits[me]*(exp.usdRate||USD_TO_INR);
+  return exp.splits[me];
+}
+
+// ============================================================
+// GROUPS
+// ============================================================
+function renderGroups(){
+  const el=document.getElementById('groups-list');
+  el.innerHTML = state.groups.map(g=>{
+    const active=g.members.filter(m=>!m.leaveDate);
+    return `<div class="group-card ${state.selectedGroupId===g.id?'active-group':''}" onclick="selectGroup('${g.id}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-weight:600;font-size:14px">${g.name}</div>
+        <span class="chip">${active.length} active</span>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px">${g.desc||''}</div>
+      <div>${g.members.map(gm=>{
+        const m=getMember(gm.memberId);
+        return `<span class="member-tag" style="${gm.leaveDate?'opacity:.5':''}">${m?.name}</span>`;
+      }).join('')}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px">${state.expenses.filter(e=>e.groupId===g.id).length} expenses</div>
+    </div>`;
+  }).join('');
+
+  if(state.selectedGroupId) showGroupDetail(state.selectedGroupId);
+}
+
+function selectGroup(id){
+  state.selectedGroupId=id;
+  renderGroups();
+}
+
+function showGroupDetail(id){
+  const g=state.groups.find(x=>x.id===id);
+  if(!g) return;
+  document.getElementById('group-detail').style.display='block';
+  document.getElementById('gd-title').textContent=g.name;
+
+  document.getElementById('gd-members').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+      ${g.members.map(gm=>{
+        const m=getMember(gm.memberId);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);${gm.leaveDate?'opacity:.6':''}">
+          <div class="av ${m?.avatarClass||'av-d'}">${m?.initials}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">${m?.name}</div>
+            <div style="font-size:11px;color:var(--text3)">Joined ${dateStr(gm.joinDate)}</div>
+            ${gm.leaveDate?`<div style="font-size:11px;color:var(--red)">Left ${dateStr(gm.leaveDate)}</div>`:''}
+          </div>
+          ${!gm.leaveDate?`<button class="btn btn-sm" onclick="removeMember('${id}','${gm.memberId}')" title="Mark as left">Leave</button>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  document.getElementById('gd-history').innerHTML=g.members.map(gm=>{
+    const m=getMember(gm.memberId);
+    return `<div style="font-size:12px;color:var(--text2);padding:4px 0">
+      ${m?.name} — joined ${dateStr(gm.joinDate)}${gm.leaveDate?' · left '+dateStr(gm.leaveDate):''}
+    </div>`;
+  }).join('');
+}
+
+function removeMember(groupId, memberId){
+  const g=state.groups.find(x=>x.id===groupId);
+  const gm=g.members.find(m=>m.memberId===memberId);
+  if(gm){ gm.leaveDate=new Date().toISOString().slice(0,10); }
+  showToast('Member marked as left');
+  renderGroups();
+}
+
+function deleteSelectedGroup(){
+  if(!confirm('Delete this group? This will not delete expenses.')) return;
+  state.groups=state.groups.filter(g=>g.id!==state.selectedGroupId);
+  state.selectedGroupId=state.groups[0]?.id||null;
+  document.getElementById('group-detail').style.display='none';
+  showToast('Group deleted'); renderGroups();
+}
+
+function initGroupModal(){
+  document.getElementById('grp-name').value='';
+  document.getElementById('grp-desc').value='';
+  document.getElementById('grp-members-check').innerHTML=MEMBERS.map(m=>`
+    <label class="checkbox-item"><input type="checkbox" value="${m.id}" checked> ${m.name}</label>
+  `).join('');
+}
+
+function saveGroup(){
+  const name=document.getElementById('grp-name').value.trim();
+  if(!name){ showToast('Enter a group name'); return; }
+  const selected=[...document.querySelectorAll('#grp-members-check input:checked')].map(i=>i.value);
+  const g={
+    id:uid(), name, desc:document.getElementById('grp-desc').value,
+    members: selected.map(id=>({memberId:id, joinDate:new Date().toISOString().slice(0,10), leaveDate:null}))
+  };
+  state.groups.push(g);
+  state.selectedGroupId=g.id;
+  closeModal('add-group-modal');
+  showToast('Group created'); renderGroups();
+}
+
+function openAddMemberModal(){
+  const g=state.groups.find(x=>x.id===state.selectedGroupId);
+  if(!g) return;
+  const existing=g.members.map(m=>m.memberId);
+  const sel=document.getElementById('add-member-select');
+  sel.innerHTML=MEMBERS.filter(m=>!existing.includes(m.id)).map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('add-member-date').value=new Date().toISOString().slice(0,10);
+  openModal('add-member-modal');
+}
+
+function confirmAddMember(){
+  const g=state.groups.find(x=>x.id===state.selectedGroupId);
+  const memberId=document.getElementById('add-member-select').value;
+  const joinDate=document.getElementById('add-member-date').value;
+  if(!memberId||!joinDate) return;
+  g.members.push({memberId, joinDate, leaveDate:null});
+  closeModal('add-member-modal');
+  showToast('Member added'); renderGroups();
+}
+
+// ============================================================
+// EXPENSES
+// ============================================================
+function renderExpenses(){
+  const gf=document.getElementById('filter-group').value;
+  const sf=document.getElementById('filter-split').value;
+  // populate group filter
+  document.getElementById('filter-group').innerHTML=`<option value="">All groups</option>`+
+    state.groups.map(g=>`<option value="${g.id}" ${gf===g.id?'selected':''}>${g.name}</option>`).join('');
+
+  let exps=[...state.expenses].sort((a,b)=>b.date.localeCompare(a.date));
+  if(gf) exps=exps.filter(e=>e.groupId===gf);
+  if(sf==='usd') exps=exps.filter(e=>e.currency==='USD');
+  else if(sf) exps=exps.filter(e=>e.splitType===sf && e.currency!=='USD');
+
+  document.getElementById('exp-count').textContent=`${exps.length} expense${exps.length!==1?'s':''}`;
+
+  const me='aisha';
+  document.getElementById('expenses-tbody').innerHTML = exps.length ? exps.map(exp=>{
+    const m=getMember(exp.paidBy);
+    const inr=getExpenseInINR(exp);
+    const myShare=getMyShare(exp,me);
+    const splitLabel=exp.currency==='USD'?'usd':exp.splitType;
+    return `<tr style="cursor:pointer" onclick="showExpenseDetail('${exp.id}')">
+      <td style="white-space:nowrap">${dateStr(exp.date)}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${exp.desc}</td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div class="av ${m?.avatarClass||'av-d'}" style="width:22px;height:22px;font-size:9px">${m?.initials}</div>${m?.name}</div></td>
+      <td><span class="pill pill-${splitLabel}">${splitLabel}</span></td>
+      <td>${exp.currency==='USD'?fmtUSD(exp.amount)+' ('+fmt(inr)+')':fmt(inr)}</td>
+      <td>${myShare?fmt(myShare):'—'}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteExpense('${exp.id}')">Delete</button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7"><div class="empty">No expenses found</div></td></tr>`;
+}
+
+function showExpenseDetail(id){
+  const exp=state.expenses.find(e=>e.id===id);
+  if(!exp) return;
+  const m=getMember(exp.paidBy);
+  const inr=getExpenseInINR(exp);
+  document.getElementById('ed-title').textContent=exp.desc;
+
+  let splitsHtml='';
+  Object.entries(exp.splits).forEach(([mid,val])=>{
+    const mm=getMember(mid);
+    let share;
+    if(exp.splitType==='percent'){
+      const total=Object.values(exp.splits).reduce((a,b)=>a+b,0);
+      share=fmt((val/total)*inr)+` (${val}%)`;
+    } else if(exp.currency==='USD'){
+      share=fmtUSD(val)+' → '+fmt(val*(exp.usdRate||USD_TO_INR));
+    } else {
+      share=fmt(val);
+    }
+    splitsHtml+=`<div class="balance-row"><div class="av ${mm?.avatarClass||'av-d'}">${mm?.initials||'?'}</div><div style="flex:1;font-size:13px">${mm?.name||mid}</div><span style="font-size:13px;font-weight:500">${share}</span></div>`;
+  });
+
+  document.getElementById('ed-body').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="metric"><div class="metric-label">Date</div><div style="font-size:15px;font-weight:500">${dateStr(exp.date)}</div></div>
+      <div class="metric"><div class="metric-label">Amount</div><div style="font-size:15px;font-weight:500">${exp.currency==='USD'?fmtUSD(exp.amount)+' → ':''} ${fmt(inr)}</div></div>
+      <div class="metric"><div class="metric-label">Paid by</div><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><div class="av ${m?.avatarClass||'av-d'}">${m?.initials}</div><span style="font-size:14px;font-weight:500">${m?.name}</span></div></div>
+      <div class="metric"><div class="metric-label">Split type</div><div style="margin-top:4px"><span class="pill pill-${exp.currency==='USD'?'usd':exp.splitType}">${exp.splitType}${exp.currency==='USD'?' (USD)':''}</span></div></div>
+    </div>
+    ${exp.note?`<div style="font-size:12px;color:var(--text3);margin-bottom:12px;padding:8px;background:var(--bg3);border-radius:var(--radius)">${exp.note}</div>`:''}
+    <div style="font-size:12px;color:var(--text3);font-weight:500;margin-bottom:6px">SPLIT BREAKDOWN</div>
+    ${splitsHtml}
+    ${exp.usdRate?`<div style="font-size:11px;color:var(--text3);margin-top:8px">USD → INR rate used: ₹${exp.usdRate}</div>`:''}
+  `;
+
+  document.getElementById('ed-delete-btn').onclick=()=>{deleteExpense(id);closeModal('expense-detail-modal')};
+  openModal('expense-detail-modal');
+}
+
+function deleteExpense(id){
+  if(!confirm('Delete this expense?')) return;
+  state.expenses=state.expenses.filter(e=>e.id!==id);
+  showToast('Expense deleted');
+  renderExpenses(); renderDashboard();
+}
+
+function initExpenseModal(){
+  document.getElementById('exp-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('exp-desc').value='';
+  document.getElementById('exp-amount').value='';
+  document.getElementById('exp-currency').value='INR';
+  document.getElementById('exp-split').value='equal';
+
+  const grpSel=document.getElementById('exp-group');
+  grpSel.innerHTML=state.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+  grpSel.onchange=populateExpenseMembers;
+
+  populateExpenseMembers();
+}
+
+function populateExpenseMembers(){
+  const gid=document.getElementById('exp-group').value;
+  const g=state.groups.find(x=>x.id===gid);
+  const activeMembers = g ? g.members.filter(m=>!m.leaveDate).map(m=>getMember(m.memberId)).filter(Boolean) : MEMBERS;
+
+  document.getElementById('exp-paidby').innerHTML=activeMembers.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('split-members').innerHTML=activeMembers.map(m=>`
+    <label class="checkbox-item"><input type="checkbox" class="split-mem-chk" value="${m.id}" checked> ${m.name}</label>
+  `).join('');
+  renderSplitInputs();
+}
+
+function renderSplitInputs(){
+  const type=document.getElementById('exp-split').value;
+  const checked=[...document.querySelectorAll('.split-mem-chk:checked')].map(i=>i.value);
+  let html='';
+  if(type==='percent'){
+    const share=checked.length?Math.round(100/checked.length):0;
+    html=`<div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px">Percentages (must sum to 100%)</div>`+
+      checked.map((id,i)=>{
+        const m=getMember(id);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div class="av ${m?.avatarClass||'av-d'}" style="width:22px;height:22px;font-size:9px">${m?.initials}</div>
+          <span style="font-size:13px;flex:1">${m?.name}</span>
+          <input type="number" class="pct-input" data-member="${id}" value="${i===checked.length-1?100-share*(checked.length-1):share}" min="0" max="100" style="width:70px">
+          <span style="font-size:12px;color:var(--text3)">%</span>
+        </div>`;
+      }).join('');
+  } else if(type==='exact'){
+    html=`<div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px">Exact amounts (₹)</div>`+
+      checked.map(id=>{
+        const m=getMember(id);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div class="av ${m?.avatarClass||'av-d'}" style="width:22px;height:22px;font-size:9px">${m?.initials}</div>
+          <span style="font-size:13px;flex:1">${m?.name}</span>
+          <input type="number" class="exact-input" data-member="${id}" value="0" min="0" style="width:100px">
+        </div>`;
+      }).join('');
+  } else {
+    if(checked.length>0){
+      html=`<div style="font-size:12px;color:var(--text3)">Split equally — ${checked.length} person${checked.length>1?'s':''}</div>`;
+    }
+  }
+  document.getElementById('split-detail').innerHTML=html;
+}
+
+document.addEventListener('change', e=>{
+  if(e.target.classList.contains('split-mem-chk')) renderSplitInputs();
+});
+
+function saveExpense(){
+  const desc=document.getElementById('exp-desc').value.trim();
+  const date=document.getElementById('exp-date').value;
+  const amount=parseFloat(document.getElementById('exp-amount').value);
+  const currency=document.getElementById('exp-currency').value;
+  const paidBy=document.getElementById('exp-paidby').value;
+  const groupId=document.getElementById('exp-group').value;
+  const splitType=document.getElementById('exp-split').value;
+  const checked=[...document.querySelectorAll('.split-mem-chk:checked')].map(i=>i.value);
+
+  if(!desc||!date||isNaN(amount)||amount<=0||!paidBy||checked.length===0){
+    showToast('Please fill all required fields'); return;
+  }
+
+  let splits={};
+  if(splitType==='percent'){
+    document.querySelectorAll('.pct-input').forEach(i=>{ splits[i.dataset.member]=parseFloat(i.value)||0 });
+    const total=Object.values(splits).reduce((a,b)=>a+b,0);
+    if(Math.abs(total-100)>0.1){ showToast('Percentages must sum to 100%'); return; }
+  } else if(splitType==='exact'){
+    document.querySelectorAll('.exact-input').forEach(i=>{ splits[i.dataset.member]=parseFloat(i.value)||0 });
+    const total=Object.values(splits).reduce((a,b)=>a+b,0);
+    if(currency==='INR' && Math.abs(total-amount)>0.5){ showToast(`Exact amounts must sum to ${fmt(amount)}`); return; }
+  } else {
+    const share=amount/checked.length;
+    checked.forEach(id=>{ splits[id]=parseFloat(share.toFixed(2)) });
+  }
+
+  const exp={
+    id:uid(), desc, date, groupId, paidBy, amount, currency, splitType, splits,
+    note: currency==='USD'?`USD — converted at ₹${USD_TO_INR}`:'',
+    ...(currency==='USD'?{usdRate:USD_TO_INR}:{})
+  };
+  state.expenses.push(exp);
+  closeModal('add-expense-modal');
+  showToast('Expense added');
+  renderExpenses(); renderDashboard();
+}
+
+// ============================================================
+// SETTLEMENTS
+// ============================================================
+function renderSettlements(){
+  const bal=computeBalances();
+  const txns=simplifyDebts(bal);
+
+  // populate payment modal members
+  const allMemberOpts=MEMBERS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('pay-from').innerHTML=allMemberOpts;
+  document.getElementById('pay-to').innerHTML=allMemberOpts;
+
+  document.getElementById('pending-settlements').innerHTML = txns.length ? txns.map(t=>{
+    const fm=getMember(t.from), tm=getMember(t.to);
+    return `<div class="settle-row">
+      <div class="av ${fm?.avatarClass||'av-d'}">${fm?.initials}</div>
+      <span style="font-weight:500">${fm?.name}</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;color:var(--text3)"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>
+      <div class="av ${tm?.avatarClass||'av-d'}">${tm?.initials}</div>
+      <span style="font-weight:500">${tm?.name}</span>
+      <span style="margin-left:auto;font-weight:600;color:var(--red)">${fmt(t.amount)}</span>
+      <button class="btn btn-sm btn-primary" onclick="quickSettle('${t.from}','${t.to}',${t.amount})">Mark paid</button>
+    </div>`;
+  }).join('') : '<div class="empty" style="padding:20px">All balances are settled! 🎉</div>';
+
+  document.getElementById('balance-summary').innerHTML=MEMBERS.map(m=>{
+    const b=bal[m.id]||0;
+    const w=Math.min(Math.abs(b)/500,100);
+    return `<div class="balance-row">
+      <div class="av ${m.avatarClass}">${m.initials}</div>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:500;margin-bottom:3px">
+          <span>${m.name}</span>
+          <span style="color:${b>=0?'var(--green)':'var(--red)'}">${b>=0?'+':''}${fmt(b)}</span>
+        </div>
+        <div class="progress"><div class="progress-bar" style="width:${w}%;background:${b>=0?'var(--green)':'var(--red)'}"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('payment-history').innerHTML = state.payments.length ? state.payments.map(p=>{
+    const fm=getMember(p.from), tm=getMember(p.to);
+    return `<div class="settle-row">
+      <div class="av ${fm?.avatarClass||'av-d'}">${fm?.initials}</div>
+      <span>${fm?.name}</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;color:var(--text3)"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>
+      <div class="av ${tm?.avatarClass||'av-d'}">${tm?.initials}</div>
+      <span>${tm?.name}</span>
+      <span style="margin-left:auto;font-weight:500;color:var(--green)">${fmt(p.amount)}</span>
+      <span style="color:var(--text3);font-size:12px;margin-left:8px">${dateStr(p.date)}</span>
+      ${p.note?`<span class="chip" style="margin-left:6px">${p.note}</span>`:''}
+    </div>`;
+  }).join('') : '<div class="empty">No payments recorded yet</div>';
+}
+
+function quickSettle(from, to, amount){
+  state.payments.push({id:uid(), from, to, amount, date:new Date().toISOString().slice(0,10), note:'Settled'});
+  showToast(`Payment recorded: ${getMember(from)?.name} → ${getMember(to)?.name} ${fmt(amount)}`);
+  renderSettlements(); renderDashboard();
+}
+
+function initPaymentModal(){
+  document.getElementById('pay-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('pay-amount').value='';
+  document.getElementById('pay-note').value='';
+  const allMemberOpts=MEMBERS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('pay-from').innerHTML=allMemberOpts;
+  document.getElementById('pay-to').innerHTML=allMemberOpts;
+  document.getElementById('pay-to').value='aisha';
+}
+
+function recordPayment(){
+  const from=document.getElementById('pay-from').value;
+  const to=document.getElementById('pay-to').value;
+  const amount=parseFloat(document.getElementById('pay-amount').value);
+  const date=document.getElementById('pay-date').value;
+  const note=document.getElementById('pay-note').value;
+  if(!from||!to||isNaN(amount)||amount<=0||from===to){ showToast('Check payment details'); return; }
+  state.payments.push({id:uid(), from, to, amount, date, note});
+  closeModal('record-payment-modal');
+  showToast('Payment recorded');
+  renderSettlements(); renderDashboard();
+}
+
+// ============================================================
+// IMPORT
+// ============================================================
+const DEMO_CSV = `date,description,paid_by,amount,currency,split_type,splits,notes
+2025-02-01,February rent,aisha,30000,INR,equal,"aisha:6000|rohan:6000|priya:6000|dev:6000|meera:6000",
+2025-02-05,February electricity,rohan,4200,INR,equal,"aisha:840|rohan:840|priya:840|dev:840|meera:840",
+2025-02-14,Groceries - Feb,priya,3600,INR,exact,"aisha:900|rohan:1200|priya:900|meera:600",Priya and Meera shared less
+2025-03-01,March rent,aisha,30000,INR,equal,"aisha:6000|rohan:6000|priya:6000|dev:6000|meera:6000",
+2025-03-05,March electricity,aisha,3800,INR,equal,"aisha:760|rohan:760|priya:760|dev:760|meera:760",
+2025-03-08,Internet - March,dev,1200,INR,equal,"aisha:240|rohan:240|priya:240|dev:240|meera:240",
+2025-03-20,Goa trip hotel,priya,320,USD,percent,"priya:25|rohan:25|aisha:25|dev:25",Trip expense in USD
+2025-03-22,Goa trip food,dev,150,USD,equal,"priya:37.5|rohan:37.5|aisha:37.5|dev:37.5",USD
+2025-03-22,Team dinner,rohan,3600,INR,exact,"aisha:800|rohan:1000|priya:800|dev:600|meera:400",
+2025-03-22,Team dinner,rohan,3600,INR,exact,"aisha:800|rohan:1000|priya:800|dev:600|meera:400",Duplicate entry
+2025-03-31,Rohan pays Aisha,rohan,-2300,INR,exact,"aisha:-2300",Settlement logged as expense
+2025-04-01,April rent,aisha,30000,INR,equal,"aisha:7500|rohan:7500|priya:7500|dev:7500",Meera left
+2025-04-03,Internet - April,sam,1200,INR,equal,"aisha:300|rohan:300|priya:300|sam:300",
+2025-04-05,April electricity,priya,3600,INR,equal,"aisha:900|rohan:900|priya:900|sam:900",
+2025-04-10,Goa hotel extra charge,priya,,USD,equal,"priya:50|rohan:50",Missing amount
+2025-03-15,Old refund,-200,INR,equal,"aisha:100|rohan:100",Missing paid_by field`;
+
+let importedRows=[], pendingAnomalies=[];
+
+function renderImportPage(){
+  // just update badge
+}
+
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  const file=e.dataTransfer.files[0];
+  if(file) processCSV(file);
+}
+
+function handleFileSelect(input){
+  if(input.files[0]) processCSV(input.files[0]);
+}
+
+function loadDemoCSV(){
+  parseAndAnalyzeCSV(DEMO_CSV, 'expenses_export.csv');
+}
+
+function processCSV(file){
+  const reader=new FileReader();
+  reader.onload=e=>parseAndAnalyzeCSV(e.target.result, file.name);
+  reader.readAsText(file);
+}
+
+function parseCSVLine(line){
+  const result=[], re=/("([^"]*)")|([^,]*)/g;
+  let m;
+  while((m=re.exec(line))!==null){
+    if(m.index===re.lastIndex){ re.lastIndex++; continue; }
+    result.push(m[2]!==undefined?m[2]:m[3]);
+    if(re.lastIndex>=line.length) break;
+  }
+  return result;
+}
+
+function parseAndAnalyzeCSV(csv, filename){
+  const lines=csv.trim().split('\n');
+  const headers=parseCSVLine(lines[0]).map(h=>h.trim().toLowerCase());
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    if(!lines[i].trim()) continue;
+    const vals=parseCSVLine(lines[i]);
+    const row={};
+    headers.forEach((h,j)=>{ row[h]=vals[j]?.trim()||'' });
+    row._lineNum=i+1;
+    rows.push(row);
+  }
+
+  const anomalies=[];
+  const clean=[];
+  const seen=new Map();
+
+  rows.forEach((row,idx)=>{
+    const errs=[], warns=[];
+
+    // 1. Missing amount
+    if(!row.amount || row.amount===''){
+      errs.push({type:'danger', code:'MISSING_AMOUNT', msg:`Row ${row._lineNum}: Missing amount — cannot import`});
+    }
+    // 2. Negative amount — possible settlement
+    else if(parseFloat(row.amount)<0){
+      warns.push({type:'warn', code:'NEGATIVE_AMOUNT', msg:`Row ${row._lineNum}: Negative amount (${row.amount}) — looks like a settlement, not an expense`});
+    }
+
+    // 3. Missing paid_by
+    if(!row.paid_by || !MEMBERS.find(m=>m.name.toLowerCase()===row.paid_by?.toLowerCase())){
+      errs.push({type:'danger', code:'MISSING_PAIDBY', msg:`Row ${row._lineNum}: paid_by "${row.paid_by||'(empty)'}" not recognised — skipped`});
+    }
+
+    // 4. USD with no FX context
+    if(row.currency==='USD' && (!row.notes||!row.notes.toLowerCase().includes('usd'))){
+      warns.push({type:'warn', code:'USD_NO_RATE', msg:`Row ${row._lineNum}: USD expense "${row.description}" — will convert at ₹${USD_TO_INR}`});
+    }
+
+    // 5. Duplicate detection
+    const key=`${row.date}|${row.description?.toLowerCase()}|${row.paid_by?.toLowerCase()}|${row.amount}`;
+    if(seen.has(key)){
+      warns.push({type:'warn', code:'DUPLICATE', msg:`Row ${row._lineNum}: Exact duplicate of row ${seen.get(key)} — "${row.description}" on ${row.date}`});
+    } else {
+      seen.set(key, row._lineNum);
+    }
+
+    // 6. Sam included in pre-April expense
+    if(row.splits&&row.splits.toLowerCase().includes('sam')&&row.date<'2025-04-15'){
+      warns.push({type:'warn', code:'MEMBER_DATE', msg:`Row ${row._lineNum}: Sam included in expense dated ${row.date} — Sam joined 15 Apr`});
+    }
+
+    // 7. Meera included in post-March expense
+    if(row.splits&&row.splits.toLowerCase().includes('meera')&&row.date>='2025-04-01'){
+      warns.push({type:'warn', code:'MEMBER_DATE', msg:`Row ${row._lineNum}: Meera included in expense dated ${row.date} — Meera left 31 Mar`});
+    }
+
+    // 8. Split type validation
+    const validSplits=['equal','percent','exact'];
+    if(row.split_type && !validSplits.includes(row.split_type)){
+      errs.push({type:'danger', code:'BAD_SPLIT', msg:`Row ${row._lineNum}: Unknown split type "${row.split_type}"`});
+    }
+
+    row._errors=errs;
+    row._warnings=warns;
+    row._status = errs.length ? 'error' : (warns.length ? 'warn' : 'ok');
+    if(errs.length===0) clean.push(row);
+    [...errs,...warns].forEach(a=>anomalies.push({...a, row, rowIdx:idx}));
+  });
+
+  importedRows=[...rows];
+  pendingAnomalies=[...anomalies];
+
+  document.getElementById('imp-rows').textContent=rows.length;
+  document.getElementById('imp-anomalies').textContent=anomalies.length;
+  document.getElementById('imp-ok').textContent=rows.filter(r=>r._status==='ok').length;
+  document.getElementById('imp-pending').textContent=anomalies.length;
+
+  // update nav badge
+  document.getElementById('import-badge').textContent=anomalies.length||'';
+  document.getElementById('import-badge').style.display=anomalies.length?'inline':'none';
+
+  renderAnomalies();
+}
+
+function renderAnomalies(){
+  document.getElementById('import-anomalies-section').style.display='block';
+  document.getElementById('import-report-section').style.display='none';
+
+  const list=document.getElementById('anomaly-list');
+  if(!pendingAnomalies.length){
+    list.innerHTML='<div class="empty" style="padding:16px">No anomalies found — all rows look clean ✓</div>';
+    return;
+  }
+
+  // group by row
+  const byRow=new Map();
+  pendingAnomalies.forEach(a=>{
+    const k=a.row._lineNum;
+    if(!byRow.has(k)) byRow.set(k,[]);
+    byRow.get(k).push(a);
+  });
+
+  list.innerHTML=[...byRow.entries()].map(([lineNum, items])=>{
+    const row=items[0].row;
+    const hasErr=items.some(i=>i.type==='danger');
+    return `<div class="anomaly-item ${hasErr?'danger':'warn'}" id="anomaly-${lineNum}">
+      <div class="anomaly-title">Row ${lineNum}: ${row.description||'(no description)'} — ${row.date}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Paid by: ${row.paid_by||'?'} · Amount: ${row.amount||'?'} ${row.currency||''}</div>
+      ${items.map(i=>`<div style="font-size:12px;color:${i.type==='danger'?'var(--red)':'var(--amber)'};margin-bottom:2px">
+        ${i.type==='danger'?'✗':'⚠'} ${i.msg}
+      </div>`).join('')}
+      ${!hasErr?`<div class="anomaly-actions">
+        <button class="btn btn-sm btn-primary" onclick="resolveAnomaly(${lineNum},'approve')">Approve &amp; import</button>
+        <button class="btn btn-sm btn-danger" onclick="resolveAnomaly(${lineNum},'skip')">Skip this row</button>
+      </div>`:`<div class="anomaly-actions">
+        <button class="btn btn-sm btn-danger" onclick="resolveAnomaly(${lineNum},'skip')">Dismiss row</button>
+      </div>`}
+    </div>`;
+  }).join('');
+}
+
+function resolveAnomaly(lineNum, action){
+  const el=document.getElementById('anomaly-'+lineNum);
+  if(el) el.remove();
+  pendingAnomalies=pendingAnomalies.filter(a=>a.row._lineNum!==lineNum);
+
+  if(action==='approve'){
+    const row=importedRows.find(r=>r._lineNum===lineNum);
+    if(row) importRowToState(row);
+    document.getElementById('imp-ok').textContent=parseInt(document.getElementById('imp-ok').textContent)+1;
+  }
+
+  document.getElementById('imp-pending').textContent=pendingAnomalies.length;
+  document.getElementById('import-badge').textContent=pendingAnomalies.length||'';
+  if(!pendingAnomalies.length) renderAnomalies();
+  showToast(action==='approve'?'Row imported':'Row skipped');
+}
+
+function approveAll(){
+  const safeRows=importedRows.filter(r=>r._status==='warn');
+  safeRows.forEach(r=>importRowToState(r));
+  pendingAnomalies=pendingAnomalies.filter(a=>a.type==='danger');
+  renderAnomalies();
+  document.getElementById('imp-ok').textContent=importedRows.filter(r=>r._status!=='error').length;
+  document.getElementById('imp-pending').textContent=pendingAnomalies.length;
+  showToast(`Approved ${safeRows.length} rows with warnings`);
+}
+
+function importRowToState(row){
+  // Parse splits string "member:val|member:val"
+  const splits={};
+  if(row.splits) row.splits.split('|').forEach(s=>{
+    const [name,val]=s.split(':');
+    const m=MEMBERS.find(x=>x.name.toLowerCase()===name?.trim().toLowerCase());
+    if(m) splits[m.id]=parseFloat(val)||0;
+  });
+
+  const paidByMember=MEMBERS.find(m=>m.name.toLowerCase()===row.paid_by?.toLowerCase());
+  if(!paidByMember) return;
+
+  const exp={
+    id:uid(),
+    desc:row.description||'Imported expense',
+    date:row.date,
+    groupId: state.groups[0]?.id||'g1',
+    paidBy: paidByMember.id,
+    amount: Math.abs(parseFloat(row.amount)),
+    currency: row.currency||'INR',
+    splitType: row.split_type||'equal',
+    splits,
+    note: row.notes||'Imported from CSV',
+    ...(row.currency==='USD'?{usdRate:USD_TO_INR}:{})
+  };
+
+  // avoid duplicates
+  const exists=state.expenses.some(e=>e.desc===exp.desc&&e.date===exp.date&&e.paidBy===exp.paidBy&&e.amount===exp.amount);
+  if(!exists) state.expenses.push(exp);
+}
+
+function finishImport(){
+  // import all clean rows
+  importedRows.filter(r=>r._status==='ok').forEach(r=>importRowToState(r));
+  document.getElementById('import-anomalies-section').style.display='none';
+  generateReport();
+  document.getElementById('import-badge').style.display='none';
+  showToast('Import complete!');
+  renderDashboard();
+}
+
+function generateReport(){
+  const ok=importedRows.filter(r=>r._status==='ok').length;
+  const warned=importedRows.filter(r=>r._status==='warn').length;
+  const errored=importedRows.filter(r=>r._status==='error').length;
+
+  const anomalyCodes={};
+  pendingAnomalies.forEach(a=>{
+    anomalyCodes[a.code]=(anomalyCodes[a.code]||0)+1;
+  });
+
+  document.getElementById('import-report-section').style.display='block';
+  document.getElementById('import-report').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+      <div class="metric"><div class="metric-label">Clean rows</div><div class="metric-val" style="color:var(--green)">${ok}</div></div>
+      <div class="metric"><div class="metric-label">Warnings</div><div class="metric-val" style="color:var(--amber)">${warned}</div></div>
+      <div class="metric"><div class="metric-label">Errors (skipped)</div><div class="metric-val" style="color:var(--red)">${errored}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Anomaly type</th><th>Count</th><th>Policy applied</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill pill-warn">DUPLICATE</span></td><td>${anomalyCodes['DUPLICATE']||0}</td><td>Surfaced for user approval — skip or import</td></tr>
+        <tr><td><span class="pill pill-danger">NEGATIVE_AMOUNT</span></td><td>${anomalyCodes['NEGATIVE_AMOUNT']||0}</td><td>Flagged as possible settlement — user decides</td></tr>
+        <tr><td><span class="pill pill-danger">MISSING_AMOUNT</span></td><td>${anomalyCodes['MISSING_AMOUNT']||0}</td><td>Row skipped — cannot compute splits without amount</td></tr>
+        <tr><td><span class="pill pill-danger">MISSING_PAIDBY</span></td><td>${anomalyCodes['MISSING_PAIDBY']||0}</td><td>Row skipped — payer must be identifiable</td></tr>
+        <tr><td><span class="pill pill-warn">USD_NO_RATE</span></td><td>${anomalyCodes['USD_NO_RATE']||0}</td><td>Converted at ₹${USD_TO_INR} — rate shown in expense note</td></tr>
+        <tr><td><span class="pill pill-warn">MEMBER_DATE</span></td><td>${anomalyCodes['MEMBER_DATE']||0}</td><td>Warned — expense date vs membership dates mismatch</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:12px;color:var(--text3);margin-top:10px">Generated ${new Date().toLocaleString()}</div>
+  `;
+}
+
+function downloadReport(){
+  const rows=[['Row','Description','Date','Status','Anomalies']];
+  importedRows.forEach(r=>{
+    const issues=[...r._errors,...r._warnings].map(e=>e.code).join('; ');
+    rows.push([r._lineNum, r.description, r.date, r._status.toUpperCase(), issues]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='import_report.csv';
+  a.click();
+  showToast('Report downloaded');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.getElementById('exp-date').value=new Date().toISOString().slice(0,10);
+renderDashboard();
+</script>
+</body>
+</html>

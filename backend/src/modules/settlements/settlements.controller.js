@@ -4,13 +4,15 @@ export async function recordSettlement(req, res) {
   try {
     const { groupId } = req.params;
     const userId = req.user.id; // Currently logged in user
-    const { receiverId, amount, currency, date } = req.body || {};
+    const { payerId, receiverId, amount, currency, date } = req.body || {};
+
+    const actualPayerId = payerId || userId;
 
     if (!receiverId || !amount) {
       return res.status(400).json({ error: 'receiverId and amount are required' });
     }
 
-    const settlement = await settlementsService.recordSettlement(groupId, userId, receiverId, amount, currency, date);
+    const settlement = await settlementsService.recordSettlement(groupId, actualPayerId, receiverId, amount, currency, date);
     res.status(201).json({ message: 'Settlement recorded successfully', settlement });
   } catch (error) {
     res.status(400).json({ error: error.message });

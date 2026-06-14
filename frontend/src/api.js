@@ -1,0 +1,119 @@
+const BASE_URL = 'http://localhost:5000/api';
+
+export function getAuthToken() {
+  return localStorage.getItem('token');
+}
+
+export function setAuthToken(token) {
+  if (token) {
+    localStorage.setItem('token', token);
+  } else {
+    localStorage.removeItem('token');
+  }
+}
+
+export async function apiFetch(endpoint, options = {}) {
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    let errorMsg = 'An error occurred';
+    try {
+      const data = await response.json();
+      errorMsg = data.error || errorMsg;
+    } catch (e) {
+      // JSON parse error
+    }
+    throw new Error(errorMsg);
+  }
+
+  return response.json();
+}
+
+// Groups API
+export async function getGroups() {
+  return apiFetch('/groups');
+}
+
+export async function createGroup(name, description) {
+  return apiFetch('/groups', {
+    method: 'POST',
+    body: JSON.stringify({ name, description })
+  });
+}
+
+export async function getGroupDetails(groupId) {
+  return apiFetch(`/groups/${groupId}`);
+}
+
+export async function addGroupMember(groupId, email) {
+  return apiFetch(`/groups/${groupId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+}
+
+export async function getGroupBalances(groupId) {
+  return apiFetch(`/groups/${groupId}/balances`);
+}
+
+export async function getGroupExpenses(groupId) {
+  return apiFetch(`/groups/${groupId}/expenses`);
+}
+
+export async function createExpense(groupId, expenseData) {
+  return apiFetch(`/groups/${groupId}/expenses`, {
+    method: 'POST',
+    body: JSON.stringify(expenseData)
+  });
+}
+
+// Importer APIs
+export async function uploadCSV(groupId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const token = getAuthToken();
+  const res = await fetch(`${BASE_URL}/groups/${groupId}/import/upload`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to upload CSV');
+  return data;
+}
+
+export async function getBatchStatus(groupId, batchId) {
+  return apiFetch(`/groups/${groupId}/import/batches/${batchId}`);
+}
+
+export async function resolveRow(groupId, batchId, rowId, actionTaken, updatedParsedData) {
+  return apiFetch(`/groups/${groupId}/import/batches/${batchId}/rows/${rowId}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ actionTaken, updatedParsedData })
+  });
+}
+
+export async function commitBatch(groupId, batchId) {
+  return apiFetch(`/groups/${groupId}/import/batches/${batchId}/commit`, {
+    method: 'POST'
+  });
+}
+
+// Settlement APIs
+export async function recordSettlement(groupId, payerId, receiverId, amount) {
+  return apiFetch(`/groups/${groupId}/settlements`, {
+    method: 'POST',
+    body: JSON.stringify({ payerId, receiverId, amount })
+  });
+}
