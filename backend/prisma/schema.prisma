@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(uuid())
+  email            String         @unique
+  passwordHash     String?        // nullable for Google Auth users who don't set a password
+  name             String
+  googleId         String?        @unique
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  RefreshTokens    RefreshToken[]
+  CreatedGroups    Group[]        @relation("CreatedGroups")
+  GroupMemberships GroupMember[]  @relation("GroupMemberships")
+  PaidExpenses     Expense[]      @relation("PaidExpenses")
+  ExpenseParticipations ExpenseParticipant[] @relation("ExpenseParticipations")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Group {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  currency    String        @default("USD")
+  creatorId   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  creator     User          @relation("CreatedGroups", fields: [creatorId], references: [id])
+  members     GroupMember[]
+  expenses    Expense[]
+}
+
+model GroupMember {
+  id        String    @id @default(uuid())
+  groupId   String
+  userId    String
+  role      String    @default("MEMBER") // "ADMIN" or "MEMBER"
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime? // NULL means currently active
+  
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User      @relation("GroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model Expense {
+  id                          String               @id @default(uuid())
+  groupId                     String
+  description                 String
+  amount                      Decimal              @db.Decimal(15, 4)
+  currency                    String               @default("USD")
+  exchangeRateToGroupCurrency Decimal              @default(1.0) @db.Decimal(15, 6)
+  expenseDate                 DateTime             @default(now())
+  paidById                    String
+  splitType                   String               // "EQUAL", "UNEQUAL", "PERCENTAGE", "SHARE"
+  deletedAt                   DateTime?            // Soft delete
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
+  
+  group                       Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  paidBy                      User                 @relation("PaidExpenses", fields: [paidById], references: [id])
+  participants                ExpenseParticipant[]
+}
+
+model ExpenseParticipant {
+  id          String   @id @default(uuid())
+  expenseId   String
+  userId      String
+  amountOwed  Decimal  @db.Decimal(15, 4)
+  splitValue  Decimal? @db.Decimal(15, 4) // Stores exactly what was input (e.g. 20 for 20%, 3 for 3 shares)
+  
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user        User     @relation("ExpenseParticipations", fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+}
