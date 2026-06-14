@@ -113,3 +113,24 @@ model Settlement {
   payer       User     @relation("PaidSettlements", fields: [payerId], references: [id])
   receiver    User     @relation("ReceivedSettlements", fields: [receiverId], references: [id])
 }
+
+model ImportBatch {
+  id        String      @id @default(uuid())
+  groupId   String
+  status    String      @default("PENDING") // PENDING, COMMITTED, REJECTED
+  createdAt DateTime    @default(now())
+  
+  rows      ImportRow[]
+}
+
+model ImportRow {
+  id          String      @id @default(uuid())
+  batchId     String
+  rawRowData  Json
+  parsedData  Json?
+  anomalies   Json?
+  status      String      @default("PENDING") // PENDING, RESOLVED, SKIPPED
+  actionTaken String?
+  
+  batch       ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+}

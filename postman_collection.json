@@ -220,6 +220,62 @@
           }
         }
       ]
+    },
+    {
+      "name": "Importer",
+      "item": [
+        {
+          "name": "Upload CSV",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/api/groups/your_group_id_here/import/upload", "host": ["{{baseUrl}}"], "path": ["api", "groups", "your_group_id_here", "import", "upload"] }
+          }
+        },
+        {
+          "name": "Get Batch Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/groups/your_group_id_here/import/batches/batch_id_here", "host": ["{{baseUrl}}"], "path": ["api", "groups", "your_group_id_here", "import", "batches", "batch_id_here"] }
+          }
+        },
+        {
+          "name": "Resolve Row",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actionTaken\": \"SKIP\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/groups/your_group_id_here/import/batches/batch_id_here/rows/row_id_here/resolve", "host": ["{{baseUrl}}"], "path": ["api", "groups", "your_group_id_here", "import", "batches", "batch_id_here", "rows", "row_id_here", "resolve"] }
+          }
+        },
+        {
+          "name": "Commit Batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/groups/your_group_id_here/import/batches/batch_id_here/commit", "host": ["{{baseUrl}}"], "path": ["api", "groups", "your_group_id_here", "import", "batches", "batch_id_here", "commit"] }
+          }
+        }
+      ]
     }
   ]
 }
