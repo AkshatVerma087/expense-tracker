@@ -1,199 +1,222 @@
-# SCOPE.md — Data Audit & Anomaly Registry
-## Spreetail Shared Expenses App
+# Scope Document
+
+## A. Problem Analysis
+
+## Assignment Understanding
+
+The CSV contains inconsistent and dirty data compiled from various flatmates with different formatting preferences.
+
+Goals:
+- Import data safely without requiring any pre-editing of the CSV.
+- Detect anomalies automatically and stage them in a queue.
+- Preserve audit trail by strictly enforcing soft deletes and requiring user approvals for destructive actions.
+- Support changing memberships (e.g., users moving in/out mid-month).
+- Generate accurate balances utilizing greedy algorithms for minimum transactions.
 
 ---
 
-## Complete Anomaly Registry (18 Confirmed Anomalies)
+## B. Anomaly Log
 
-### A-01: DATE_FORMAT_MISMATCH
-- **Rows Affected:** 1,2,3,4,5,6,7,15,16,17,18,19,20,21,22,23,24,25,26,33,34,35,36,37,38,39 (26 rows)
-- **Severity:** 🔴 CRITICAL
-- **Description:** The spreadsheet was created in an Indian locale (DD/MM/YYYY). When openpyxl reads Excel date serials, it interprets them as MM/DD/YYYY. "February rent" stored as 01/02/2026 is read as January 2nd, not February 1st. Every row where the day value ≤ 12 has its month and day swapped.
-- **Detection Logic:** For rows where openpyxl returns a Python `datetime` object AND the day value ≤ 12, the date is suspect. Cross-reference month in description vs. parsed month.
-- **User Message:** `"Date appears to be in DD/MM/YYYY format but was read as MM/DD/YYYY. We have corrected [original] → [corrected]. Please verify."`
-- **Resolution Strategy:** Auto-correct: swap month and day when day ≤ 12. Show corrected date in review UI. Require user acknowledgment.
-- **Approval Required:** Yes
+### 1. Duplicate expenses (Exact)
+Problem:
+Two expenses appear to represent the exact same transaction.
+Detection:
+Same payer + amount + date + description string distance.
+Policy:
+Flag for user review and default to keeping the one with a note.
+Action:
+Marked as Pending Review.
 
----
+### 2. Conflicting duplicate entries
+Problem:
+Two expenses refer to the same event but have conflicting payers or amounts.
+Detection:
+Same date and event keywords, but different amount or payer ID.
+Policy:
+Block import of both rows until the user explicitly selects one.
+Action:
+Marked as Pending Review.
 
-### A-02: DUPLICATE_EXACT
-- **Rows Affected:** 4 & 5 (Marina Bites dinner)
-- **Severity:** 🔴 CRITICAL
-- **Description:** "Dinner at Marina Bites" (Row 4, Dev, ₹3200, has note) and "dinner - marina bites" (Row 5, Dev, ₹3200, no note). Same date, same payer, same amount. Only description casing and punctuation differ.
-- **Detection Logic:** After normalization, check for rows with identical `(normalized_description, paid_by, amount, currency, date)`. Levenshtein distance < 5 on description.
-- **User Message:** `"Two entries appear to be the same expense logged twice. Row 4 has an additional note. Suggested action: Keep Row 4, discard Row 5."`
-- **Resolution Strategy:** Flag both. Default suggestion: keep the one with a note (Row 4). Require explicit user approval to delete Row 5.
-- **Approval Required:** Yes
+### 3. Settlement recorded as expense
+Problem:
+A direct payment transfer between two users is logged alongside shared expenses.
+Detection:
+Missing `split_type` and description matches a payment/deposit pattern.
+Policy:
+Auto-classify as a Settlement and route to the settlements table.
+Action:
+Converted to Settlement Table.
 
----
+### 4. Percentages sum mismatch
+Problem:
+The split percentages for an expense exceed or fall short of 100%.
+Detection:
+Sum of parsed `split_details` percentages != 100.
+Policy:
+Block the row and require the user to edit the percentages manually.
+Action:
+Marked as Pending Review.
 
-### A-03: DUPLICATE_CONFLICTING
-- **Rows Affected:** 23 & 24 (Thalassa dinner)
-- **Severity:** 🔴 CRITICAL
-- **Description:** "Dinner at Thalassa" (Row 23, Aisha paid, ₹2400) and "Thalassa dinner" (Row 24, Rohan paid, ₹2450). Same date, different payers, different amounts. Row 24 note: "Aisha also logged this I think hers is wrong."
-- **Resolution Strategy:** BLOCK both rows. Do not import either until user explicitly selects one. Cannot auto-resolve.
-- **Approval Required:** Yes — mandatory
+### 5. Date format mismatch
+Problem:
+The spreadsheet was created in DD/MM/YYYY but read as MM/DD/YYYY by the parser.
+Detection:
+Day value ≤ 12, creating ambiguity in month/day translation.
+Policy:
+Auto-correct the date by swapping month and day, but require soft approval.
+Action:
+Auto-corrected and Pending User Approval.
 
----
+### 6. Sub-paise amount
+Problem:
+The amount contains more than 2 decimal places (e.g., ₹899.995).
+Detection:
+Decimal places > 2.
+Policy:
+Round to 2 decimal places using `ROUND_HALF_UP`.
+Action:
+Rounded to ₹900.00.
 
-### A-04: SETTLEMENT_AS_EXPENSE
-- **Rows Affected:** 13 (Rohan paid Aisha back, ₹5000)
-- **Severity:** 🔴 CRITICAL
-- **Description:** "Rohan paid Aisha back" — ₹5000, no `split_type`. This is a payment transfer between two people, not a shared expense.
-- **Detection Logic:** `split_type IS NULL` AND description matches payment pattern.
-- **Resolution Strategy:** Auto-classify as Settlement (Rohan → Aisha, ₹5000). Import into `settlements` table.
-- **Approval Required:** Yes
+### 7. Missing payer
+Problem:
+The `paid_by` field is missing.
+Detection:
+`paid_by` is NULL.
+Policy:
+Block the row until the user assigns a valid payer.
+Action:
+Marked as Pending Review.
 
----
+### 8. Missing currency
+Problem:
+The `currency` field is NULL.
+Detection:
+`currency` is NULL.
+Policy:
+Default to the group's base currency and show a warning.
+Action:
+Assumed INR and Pending User Approval.
 
-### A-05: PERCENTAGE_SUM_INVALID
-- **Rows Affected:** 14 (Pizza Friday), 31 (Weekend Brunch)
-- **Severity:** 🔴 CRITICAL
-- **Description:** Both rows: Aisha 30% + Rohan 30% + Priya 30% + Meera 20% = 110%.
-- **Detection Logic:** Parse `split_details` for percentage values. Sum them. If `|sum - 100| > 0.01`, flag.
-- **Resolution Strategy:** BLOCK both rows. Require user to edit percentages.
-- **Approval Required:** Yes — mandatory
+### 9. Unknown member in split
+Problem:
+A participant listed in `split_with` is not a registered member of the group.
+Detection:
+String match fails against all `GroupMember` emails and names.
+Policy:
+Merge the unknown participant's share into the payer's share.
+Action:
+Merged into payer's share.
 
----
+### 10. Ambiguous payer name
+Problem:
+The payer's name has a typo or abbreviation (e.g., "Priya S").
+Detection:
+No exact string match found, requires fuzzy string matching.
+Policy:
+Suggest the closest match and require user confirmation.
+Action:
+Fuzzy matched and Pending User Approval.
 
-### A-06: SUB_PAISE_AMOUNT
-- **Rows Affected:** 9 (Cylinder refill, ₹899.995)
-- **Severity:** 🟡 MEDIUM
-- **Description:** Amount has 3 decimal places. ₹899.995 / 4 = ₹224.99875 — not representable in paise.
-- **Resolution Strategy:** Round to 2 decimal places (ROUND_HALF_UP). Log original and rounded values.
-- **Approval Required:** No — auto-apply with notification
+### 11. Member inactive during expense date
+Problem:
+A user is listed in an expense that occurred before they joined or after they left.
+Detection:
+`expenseDate` falls outside of the user's `[joinedAt, leftAt]` window.
+Policy:
+Offer to remove the user and redistribute the cost among the remaining members.
+Action:
+Marked as Pending Review.
 
----
+### 12. Negative amount
+Problem:
+The amount is less than 0 (usually a refund).
+Detection:
+Amount < 0.
+Policy:
+Import as a refund (reducing everyone's owed amount).
+Action:
+Converted to Refund.
 
-### A-07: MISSING_PAYER
-- **Rows Affected:** 12 (House cleaning supplies, ₹780)
-- **Severity:** 🔴 CRITICAL
-- **Description:** `paid_by` is NULL. Note: "can't remember who paid."
-- **Resolution Strategy:** BLOCK. Import only if user selects a payer in review UI.
-- **Approval Required:** Yes — mandatory
-
----
-
-### A-08: MISSING_CURRENCY
-- **Rows Affected:** 27 (Groceries DMart, ₹2105)
-- **Severity:** 🟡 MEDIUM
-- **Description:** `currency` is NULL. Context suggests INR.
-- **Resolution Strategy:** Default to group currency (INR). Show warning. User can override.
-- **Approval Required:** Yes — soft confirmation
-
----
-
-### A-09: UNKNOWN_MEMBER_IN_SPLIT
-- **Rows Affected:** 22 (Parasailing, Dev's friend Kabir)
-- **Severity:** 🟡 MEDIUM
-- **Description:** `split_with` includes "Dev's friend Kabir" — not a registered group member.
-- **Resolution Strategy:** Merge Kabir's share into Dev's share. Log clearly.
-- **Approval Required:** Yes
-
----
-
-### A-10: AMBIGUOUS_PAYER_NAME
-- **Rows Affected:** 10 (Groceries DMart, "Priya S")
-- **Severity:** 🟡 MEDIUM
-- **Description:** `paid_by = "Priya S"` — no exact match. Fuzzy match → "Priya".
-- **Resolution Strategy:** Fuzzy match → suggest "Priya." Require user confirmation.
-- **Approval Required:** Yes
-
----
-
-### A-11: PAYER_NAME_CASE_MISMATCH
-- **Rows Affected:** 8 ("priya"), 26 ("rohan")
-- **Severity:** 🟢 LOW
-- **Description:** `paid_by` in lowercase. Auto-normalize silently.
-- **Resolution Strategy:** Auto-normalize.
-- **Approval Required:** No
-
----
-
-### A-12: MEMBER_POST_DEPARTURE
-- **Rows Affected:** 35 (Groceries BigBasket, April 2, 2026, Meera in split)
-- **Severity:** 🔴 CRITICAL
-- **Description:** Meera moved out March 31. Row 35 is April 2. Meera should not be in this expense.
-- **Resolution Strategy:** Flag. Offer to remove Meera and redistribute. User confirms.
-- **Approval Required:** Yes
-
----
-
-### A-13: ZERO_AMOUNT
-- **Rows Affected:** 30 (Dinner order Swiggy, ₹0.00)
-- **Severity:** 🟡 MEDIUM
-- **Description:** Amount is ₹0. Note: "counted twice earlier - fixing later."
-- **Resolution Strategy:** Default: skip. User can override to import as ₹0 expense.
-- **Approval Required:** Yes
-
----
-
-### A-14: NEGATIVE_AMOUNT_REFUND
-- **Rows Affected:** 25 (Parasailing refund, -$30 USD)
-- **Severity:** 🟡 MEDIUM
-- **Description:** Amount is -$30. Note: "one slot got cancelled." Legitimate partial refund.
-- **Resolution Strategy:** Import as negative expense. Each participant's `amount_owed` decreases.
-- **Approval Required:** Yes
-
----
-
-### A-15: AMBIGUOUS_DATE
-- **Rows Affected:** 33 (Deep cleaning service)
-- **Severity:** 🟡 MEDIUM
-- **Description:** Date could be April 5 or May 4. Note: "is this April 5 or May 4? format is a mess."
-- **Resolution Strategy:** FLAG. Present both options. User must select. No default.
-- **Approval Required:** Yes — mandatory
+### 13. USD currency requires conversion
+Problem:
+An expense is logged in USD while the group operates in INR.
+Detection:
+Currency code is USD.
+Policy:
+Fetch the historical exchange rate for the exact `expenseDate` from Frankfurter API.
+Action:
+Converted to INR using Historical Rate.
 
 ---
 
-### A-16: DEPOSIT_AS_EXPENSE
-- **Rows Affected:** 37 (Sam deposit share, ₹15,000, Sam → Aisha)
-- **Severity:** 🟡 MEDIUM
-- **Description:** "Sam moving in! paid Aisha his deposit." One-to-one payment, not a shared expense.
-- **Resolution Strategy:** Import as Settlement (Sam → Aisha, ₹15,000).
-- **Approval Required:** Yes
+## C. Database Schema
 
----
+Users
+- id
+- name
+- email
+- passwordHash
+- createdAt
 
-### A-17: FOREIGN_CURRENCY_USD
-- **Rows Affected:** 19 (Goa villa, $540), 20 (Beach shack, $84), 22 (Parasailing, $150), 25 (Parasailing refund, -$30)
-- **Severity:** 🔴 CRITICAL
-- **Description:** 4 rows in USD. Group default currency is INR. Must convert at historical rate.
-- **Resolution Strategy:** Fetch from `api.frankfurter.app/[date]?from=USD&to=INR`. Store rate. Show to user. Allow override.
-- **Approval Required:** Yes
+Groups
+- id
+- name
+- description
+- currency
+- creatorId
 
----
+GroupMembers
+- id
+- groupId
+- userId
+- role
+- joinedAt
+- leftAt
 
-### A-18: EQUAL_WITH_SHARE_DETAILS
-- **Rows Affected:** 41 (Furniture for common room)
-- **Severity:** 🟢 LOW
-- **Description:** `split_type = 'equal'` but `split_details = 'Aisha 1; Rohan 1; Priya 1; Sam 1'`. Redundant but consistent.
-- **Resolution Strategy:** Use EQUAL split. Log as informational.
-- **Approval Required:** No
+Expenses
+- id
+- groupId
+- description
+- amount
+- currency
+- originalCurrency
+- exchangeRateToGroupCurrency
+- expenseDate
+- paidById
+- splitType
+- importBatchId
+- deletedAt
 
----
+ExpenseParticipants
+- id
+- expenseId
+- userId
+- amountOwed
+- splitValue
+- isSettled
 
-## Anomaly Summary Table
+Settlements
+- id
+- groupId
+- payerId
+- receiverId
+- amount
+- currency
+- date
+- deletedAt
 
-| Code | Description | Rows | Severity | Resolution | Approval |
-|------|-------------|------|----------|------------|---------|
-| A-01 | Date format mismatch (DD/MM ↔ MM/DD) | 26 rows | 🔴 CRITICAL | Auto-correct + confirm | Yes |
-| A-02 | Exact duplicate (Marina Bites) | 4, 5 | 🔴 CRITICAL | Keep Row 4, discard Row 5 | Yes |
-| A-03 | Conflicting duplicate (Thalassa) | 23, 24 | 🔴 CRITICAL | Block — user selects | Yes |
-| A-04 | Settlement as expense (Rohan→Aisha) | 13 | 🔴 CRITICAL | Import as Settlement | Yes |
-| A-05 | Percentages sum to 110% | 14, 31 | 🔴 CRITICAL | Block — user edits | Yes |
-| A-06 | Sub-paise amount (₹899.995) | 9 | 🟡 MEDIUM | Round to ₹900.00 | No |
-| A-07 | Missing payer | 12 | 🔴 CRITICAL | Block — user assigns | Yes |
-| A-08 | Missing currency | 27 | 🟡 MEDIUM | Default INR + confirm | Yes |
-| A-09 | Unknown member (Kabir) | 22 | 🟡 MEDIUM | Merge into Dev's share | Yes |
-| A-10 | Ambiguous payer name ("Priya S") | 10 | 🟡 MEDIUM | Fuzzy match → confirm | Yes |
-| A-11 | Payer name case mismatch | 8, 26 | 🟢 LOW | Auto-normalize | No |
-| A-12 | Member after departure (Meera, Apr 2) | 35 | 🔴 CRITICAL | Remove + redistribute | Yes |
-| A-13 | Zero amount | 30 | 🟡 MEDIUM | Skip (recommended) | Yes |
-| A-14 | Negative amount (refund) | 25 | 🟡 MEDIUM | Import as refund | Yes |
-| A-15 | Ambiguous date (Apr 5 vs May 4) | 33 | 🟡 MEDIUM | Block — user selects | Yes |
-| A-16 | Deposit as expense (Sam→Aisha) | 37 | 🟡 MEDIUM | Import as Settlement | Yes |
-| A-17 | USD currency requires conversion | 19, 20, 22, 25 | 🔴 CRITICAL | Fetch historical rate | Yes |
-| A-18 | Equal split with share details | 41 | 🟢 LOW | Use EQUAL, log note | No |
+ImportBatches
+- id
+- groupId
+- status
+- totalRows
+- anomalyCount
 
-**Total: 18 anomalies across 42 data rows.**
+ImportRows
+- id
+- batchId
+- rawRowData
+- parsedData
+- anomalies
+- status
+- actionTaken
