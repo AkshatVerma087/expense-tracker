@@ -138,6 +138,24 @@ export async function commitBatch(groupId, batchId) {
   });
 }
 
+export async function downloadBatchReport(groupId, batchId) {
+  const token = getAuthToken();
+  const response = await fetch(`${BASE_URL}/groups/${groupId}/import/batches/${batchId}/report`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  if (!response.ok) throw new Error('Failed to download report');
+  
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `IMPORT_REPORT_${batchId}.md`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 export async function getAllBatches() {
   return apiFetch('/import/batches');
 }

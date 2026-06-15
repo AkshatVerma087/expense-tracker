@@ -50,3 +50,16 @@ export async function commitBatch(req, res) {
     res.status(400).json({ error: error.message });
   }
 }
+
+export async function downloadReport(req, res) {
+  try {
+    const { groupId, batchId } = req.params;
+    const reportMd = await importerService.generateImportReport(groupId, batchId);
+    
+    res.setHeader('Content-Type', 'text/markdown');
+    res.setHeader('Content-Disposition', `attachment; filename=IMPORT_REPORT_${batchId}.md`);
+    res.status(200).send(reportMd);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}

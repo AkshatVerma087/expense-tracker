@@ -9,5 +9,6 @@ router.post('/upload', upload.single('file'), importerController.uploadCSV);
 router.get('/batches/:batchId', importerController.getBatchStatus);
 router.post('/batches/:batchId/rows/:rowId/resolve', importerController.resolveRow);
 router.post('/batches/:batchId/commit', importerController.commitBatch);
+router.get('/batches/:batchId/report', importerController.downloadReport);
 
 export default router;

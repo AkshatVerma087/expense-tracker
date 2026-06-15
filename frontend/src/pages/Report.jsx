@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getBatchRows } from '../api';
+import { getBatchRows, downloadBatchReport } from '../api';
 
 export default function Report() {
   const { groupId, batchId } = useParams();
@@ -93,7 +93,10 @@ export default function Report() {
             <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>✅ Import Complete</div>
             <div className="text-sm text-muted">Batch ID: {batchId} · Committed {new Date(batchData.createdAt).toLocaleString()}</div>
           </div>
-          <button className="btn btn-outline" onClick={() => navigate(`/groups/${groupId}`)}>Go to Group Ledger →</button>
+          <div className="flex gap-8">
+            <button className="btn btn-primary" onClick={() => downloadBatchReport(groupId, batchId)}>Download Report (.md)</button>
+            <button className="btn btn-outline" onClick={() => navigate(`/groups/${groupId}`)}>Go to Group Ledger →</button>
+          </div>
         </div>
 
         <div className="grid-4" style={{ marginBottom: '20px' }}>

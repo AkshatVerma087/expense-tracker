@@ -383,3 +383,42 @@ export async function commitBatch(groupId, batchId, userId) {
 
   return { message: 'Batch committed successfully', rowsImported: resolvedRows.length };
 }
+
+export async function generateImportReport(groupId, batchId) {
+  const batch = await prisma.importBatch.findUnique({
+    where: { id: batchId, groupId },
+    include: { rows: true }
+  });
+  if (!batch) throw new Error('Batch not found');
+  
+  let md = `# Import Report\n\n`;
+  md += `Import Time:\n${new Date(batch.createdAt || Date.now()).toUTCString()}\n\n`;
+  md += `Rows Processed:\n${batch.rows.length}\n\n`;
+  
+  const imported = batch.rows.filter(r => r.status === 'RESOLVED' && r.actionTaken !== 'Import as Settlement').length;
+  const skipped = batch.rows.filter(r => r.status === 'SKIPPED').length;
+  const settlementCount = batch.rows.filter(r => r.status === 'RESOLVED' && r.actionTaken === 'Import as Settlement').length;
+  
+  md += `Imported:\n${imported}\n\n`;
+  md += `Imported as Settlements:\n${settlementCount}\n\n`;
+  md += `Skipped / Rejected:\n${skipped}\n\n---\n\n## Anomalies\n\n`;
+  
+  let i = 1;
+  batch.rows.forEach((row) => {
+     if (row.anomalies && row.anomalies.length > 0) {
+       row.anomalies.forEach(a => {
+         md += `${i}. ${a.type}\n`;
+         md += `Row: ${row.parsedData?.rowNumber || 'Unknown'}\n`;
+         md += `Action: ${row.actionTaken || 'Pending'}\n\n`;
+         i++;
+       });
+     }
+  });
+
+  md += `---\n\n## Final Summary\n\n`;
+  md += `Successfully Imported: ${imported + settlementCount}\n\n`;
+  md += `Requires Review: ${batch.rows.filter(r => r.status === 'PENDING').length}\n\n`;
+  md += `Rejected: ${skipped}\n`;
+  
+  return md;
+}
