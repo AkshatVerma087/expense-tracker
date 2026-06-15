@@ -82,6 +82,37 @@ export default function Import() {
     }
   };
 
+  const handleApproveAllLowMedium = async () => {
+    if (!batchData) return;
+    const rowsToApprove = new Set();
+    
+    batchData.rows.forEach(row => {
+      if (row.status === 'PENDING' && row.anomalies) {
+        // Only if it has NO critical anomalies
+        const hasCritical = row.anomalies.some(a => a.severity === 'CRITICAL' && a.status !== 'RESOLVED');
+        if (!hasCritical) {
+           rowsToApprove.add(row.id);
+        }
+      }
+    });
+
+    if (rowsToApprove.size === 0) {
+      alert("No rows with only LOW/MEDIUM anomalies available to approve.");
+      return;
+    }
+
+    try {
+      await Promise.all(Array.from(rowsToApprove).map(rowId => {
+        const rowData = batchData.rows.find(r => r.id === rowId).parsedData;
+        return resolveRow(groupId, batchId, rowId, 'RESOLVED', rowData);
+      }));
+      const res = await getBatchStatus(groupId, batchId);
+      setBatchData(res.batch);
+    } catch (err) {
+      alert('Failed to resolve some rows: ' + err.message);
+    }
+  };
+
   const handleCommit = async () => {
     setStep('IMPORTING');
     try {
@@ -173,7 +204,7 @@ export default function Import() {
     const progressPercent = totalAnomalies === 0 ? 100 : Math.round((resolvedCount / totalAnomalies) * 100);
 
     const isValid = allAnomalies.length === 0 && batchData.status === 'READY';
-    const canCommit = criticalCount === 0; // Assuming medium/low can be skipped implicitly, but usually they must be explicitly skipped/approved
+    const canCommit = allAnomalies.length === 0; // Backend requires all anomalies to be explicitly skipped/approved
 
     return (
       <div className="review-layout">
@@ -204,6 +235,15 @@ export default function Import() {
             <div className="alert alert-warning" style={{ marginBottom: '12px' }}>
               <span>⚠</span><span style={{ fontSize: '11px' }}>{criticalCount} critical anomalies must be resolved.</span>
             </div>
+          )}
+          {mediumCount > 0 && (
+            <button 
+               className="btn btn-outline btn-sm full-width" 
+               style={{ marginBottom: '12px', justifyContent: 'center' }} 
+               onClick={handleApproveAllLowMedium}
+            >
+              ✓ Approve All Low/Medium
+            </button>
           )}
           <button 
             className={`btn full-width ${canCommit ? 'btn-primary' : ''}`} 

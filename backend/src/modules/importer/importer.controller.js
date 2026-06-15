@@ -46,6 +46,7 @@ export async function commitBatch(req, res) {
     const result = await importerService.commitBatch(groupId, batchId, userId);
     res.status(200).json(result);
   } catch (error) {
+    console.error("commitBatch Error:", error);
     res.status(400).json({ error: error.message });
   }
 }

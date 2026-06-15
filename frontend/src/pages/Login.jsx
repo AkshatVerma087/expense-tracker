@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
   const [email, setEmail] = useState('aisha@flatmates.in');
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { loginWithEmail, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    const success = await login(email, password);
-    if (success) {
-      navigate('/');
-    } else {
+    try {
+      const success = await loginWithEmail(email, password);
+      if (success) {
+        navigate('/');
+      }
+    } catch (err) {
       setError('Invalid credentials');
     }
   };
@@ -62,7 +65,27 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="divider"></div>
+        <div style={{ margin: '16px 0', textAlign: 'center', color: 'var(--slate-500)', fontSize: '14px' }}>— or —</div>
+        
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+              setError('');
+              try {
+                const success = await loginWithGoogle(credentialResponse.credential);
+                if (success) navigate('/');
+              } catch (err) {
+                setError('Google login failed');
+              }
+            }}
+            onError={() => {
+              setError('Google Login was unsuccessful');
+            }}
+            useOneTap
+          />
+        </div>
+
+        <div className="divider" style={{ marginTop: '0' }}></div>
         <div className="text-sm text-muted" style={{ textAlign: 'center' }}>
           Don't have an account? <span style={{ color: 'var(--indigo)', fontWeight: 500, cursor: 'pointer' }}>Create one →</span>
         </div>

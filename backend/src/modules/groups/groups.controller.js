@@ -58,3 +58,31 @@ export async function addMember(req, res) {
     res.status(400).json({ error: error.message });
   }
 }
+
+export async function updateGroup(req, res) {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    const adminUserId = req.user.id;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
+
+    const group = await groupsService.updateGroup(id, adminUserId, name, description);
+    res.status(200).json({ message: 'Group updated successfully', group });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}
+
+export async function removeMember(req, res) {
+  try {
+    const { id, userId: memberId } = req.params;
+    const adminUserId = req.user.id;
+    const membership = await groupsService.removeMember(id, adminUserId, memberId);
+    res.status(200).json({ message: 'Member removed successfully', membership });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}

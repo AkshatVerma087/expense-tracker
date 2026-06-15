@@ -78,10 +78,28 @@ async function logout(req, res) {
   }
 }
 
+
+async function changePassword(req, res) {
+  try {
+    const userId = req.user.id;
+    const { oldPassword, newPassword } = req.body;
+    
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: 'Old and new passwords are required' });
+    }
+    
+    await authService.changePassword(userId, oldPassword, newPassword);
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}
+
 export {
   register,
   login,
   googleAuth,
   refresh,
-  logout
+  logout,
+  changePassword
 };

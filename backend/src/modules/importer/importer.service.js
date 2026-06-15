@@ -47,15 +47,21 @@ export async function processUpload(groupId, userId, filePath) {
         }
 
         try {
-          // Cache-aware exchange rate helper
+        const inMemoryRateCache = {};
+        
+        // Cache-aware exchange rate helper
         const fetchExchangeRate = async (dateIso) => {
+          if (inMemoryRateCache[dateIso]) return inMemoryRateCache[dateIso];
+          
           try {
             // Check cache first
             const cached = await prisma.exchangeRateCache.findUnique({
               where: { date_fromCurrency_toCurrency: { date: dateIso, fromCurrency: 'USD', toCurrency: 'INR' } }
             });
             if (cached) {
-              return parseFloat(cached.rate.toString());
+              const rate = parseFloat(cached.rate.toString());
+              inMemoryRateCache[dateIso] = rate;
+              return rate;
             }
 
             // Fetch from API
@@ -69,6 +75,7 @@ export async function processUpload(groupId, userId, filePath) {
               create: { date: dateIso, fromCurrency: 'USD', toCurrency: 'INR', rate, source: 'frankfurter' }
             });
 
+            inMemoryRateCache[dateIso] = rate;
             return rate;
           } catch (error) {
             throw error;
@@ -142,7 +149,8 @@ export async function commitBatch(groupId, batchId, userId) {
   });
 
   if (!batch) throw new Error('Batch not found');
-  if (batch.status !== 'PENDING') throw new Error(`Batch is already ${batch.status}`);
+  if (batch.status === 'COMMITTED') throw new Error(`Batch is already COMMITTED`);
+  if (batch.status === 'FAILED') throw new Error(`Batch is FAILED`);
 
   const pendingRows = batch.rows.filter(r => r.status === 'PENDING');
   if (pendingRows.length > 0) {
@@ -157,176 +165,221 @@ export async function commitBatch(groupId, batchId, userId) {
 
   const resolvedRows = batch.rows.filter(r => r.status === 'RESOLVED');
 
-  // Insert Expenses using a Transaction
-  await prisma.$transaction(async (tx) => {
-    for (const row of resolvedRows) {
-      const { date, description, amount, currency, exchangeRate, payerEmail } = row.parsedData;
-      
-      const payer = groupMembers.find(m => m.user.email === payerEmail);
-      if (!payer) throw new Error(`Data corruption: User ${payerEmail} not found at commit time`);
+  const operations = [];
+  const crypto = await import('crypto');
 
-      const totalAmount = new Decimal(amount);
-      const membersCount = groupMembers.length;
-      // Dynamic Split Calculation
-      let totalAssigned = new Decimal(0);
-      const computedParticipants = [];
-      const splitType = row.parsedData.splitType || 'EQUAL';
-      const splitWithStr = row.parsedData.splitWith || '';
-      const splitDetailsStr = row.parsedData.splitDetails || '';
+  for (const row of resolvedRows) {
+    const { date, description, amount, currency, exchangeRate, payerEmail } = row.parsedData;
+    
+    const payer = groupMembers.find(m => m.user.email === payerEmail);
+    if (!payer) throw new Error(`Data corruption: User ${payerEmail} not found at commit time`);
 
-      // Determine who is participating in this split
-      let participantMembers = [];
-      if (splitWithStr) {
-        const emails = splitWithStr.split(',').map(s => s.trim().toLowerCase());
-        participantMembers = groupMembers.filter(m => emails.includes(m.user.email.toLowerCase()));
-      } else {
-        // If no split_with provided, default to all current group members
-        participantMembers = groupMembers;
+    const cleanAmount = String(amount || '0').replace(/,/g, '');
+    const totalAmount = new Decimal(cleanAmount || '0');
+    const membersCount = groupMembers.length;
+    let totalAssigned = new Decimal(0);
+    const computedParticipants = [];
+    const splitType = row.parsedData.splitType || 'EQUAL';
+    const splitWithStr = row.parsedData.splitWith || '';
+    const splitDetailsStr = row.parsedData.splitDetails || '';
+
+    let participantMembers = [];
+    let unknownSharesToAbsorb = new Decimal(0);
+    
+    let parsedDateString = date;
+    if (parsedDateString && !parsedDateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const parts = parsedDateString.split(/[-/.]/);
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          parsedDateString = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
       }
-      
-      const pCount = participantMembers.length;
-      if (pCount === 0) throw new Error(`Row ${row.parsedData.rowNumber}: No valid participants found.`);
+    }
+    
+    const expenseDate = new Date(parsedDateString);
 
-      if (splitType === 'EQUAL' || splitType === 'SHARE') {
-        let shares = [];
-        let totalShares = new Decimal(0);
+    const isOutOfBounds = (m) => {
+      if (m.joinedAt && expenseDate < new Date(m.joinedAt)) return true;
+      if (m.leftAt && expenseDate > new Date(m.leftAt)) return true;
+      return false;
+    };
 
-        if (splitType === 'SHARE' && splitDetailsStr) {
-          const parts = splitDetailsStr.split(';');
-          participantMembers.forEach(m => {
-            const match = parts.find(p => p.toLowerCase().includes(m.user.name.toLowerCase()) || p.toLowerCase().includes(m.user.email.toLowerCase()));
-            const share = match ? new Decimal(match.match(/(\d+(?:\.\d+)?)/)[1]) : new Decimal(1);
-            shares.push({ member: m, share });
-            totalShares = totalShares.plus(share);
-          });
+    if (splitWithStr) {
+      const identifiers = splitWithStr.split(/[;,]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+      identifiers.forEach(identifier => {
+        const member = groupMembers.find(m => m.user.email.toLowerCase() === identifier || m.user.name.toLowerCase() === identifier);
+        if (member && !isOutOfBounds(member)) {
+          participantMembers.push(member);
         } else {
-          participantMembers.forEach(m => {
-            shares.push({ member: m, share: new Decimal(1) });
-            totalShares = totalShares.plus(1);
-          });
-        }
-
-        for (let i = 0; i < pCount; i++) {
-          const { member, share } = shares[i];
-          let amountOwed = totalAmount.times(share).dividedBy(totalShares).toDecimalPlaces(4, Decimal.ROUND_HALF_UP);
-          
-          if (i === pCount - 1) amountOwed = totalAmount.minus(totalAssigned);
-          totalAssigned = totalAssigned.plus(amountOwed);
-
-          computedParticipants.push({
-            userId: member.userId,
-            amountOwed: amountOwed,
-            splitValue: splitType === 'SHARE' ? share : null
-          });
-        }
-      } else if (splitType === 'PERCENTAGE') {
-        const parts = splitDetailsStr.split(';');
-        for (let i = 0; i < pCount; i++) {
-          const m = participantMembers[i];
-          const match = parts.find(p => p.toLowerCase().includes(m.user.name.toLowerCase()) || p.toLowerCase().includes(m.user.email.toLowerCase()));
-          const pct = match ? new Decimal(match.match(/(\d+(?:\.\d+)?)/)[1]) : new Decimal(0);
-          
-          let amountOwed = totalAmount.times(pct).dividedBy(100).toDecimalPlaces(4, Decimal.ROUND_HALF_UP);
-          if (i === pCount - 1 && totalAssigned.plus(amountOwed).lessThan(totalAmount)) {
-             // Basic rounding adjustment
-             amountOwed = totalAmount.minus(totalAssigned);
+          let share = new Decimal(1);
+          if (splitType === 'SHARE' && splitDetailsStr) {
+            const parts = splitDetailsStr.split(';');
+            const match = parts.find(p => p.toLowerCase().includes(identifier));
+            if (match) {
+              const sMatch = match.match(/(\d+(?:\.\d+)?)/);
+              if (sMatch) share = new Decimal(sMatch[1]);
+            }
           }
-          totalAssigned = totalAssigned.plus(amountOwed);
+          unknownSharesToAbsorb = unknownSharesToAbsorb.plus(share);
+        }
+      });
+    } else {
+      participantMembers = groupMembers.filter(m => !isOutOfBounds(m));
+    }
+    
+    let pCount = participantMembers.length;
+    if (pCount === 0 && unknownSharesToAbsorb.isZero()) throw new Error(`Row ${row.parsedData.rowNumber}: No valid participants found.`);
 
-          computedParticipants.push({
-            userId: m.userId,
-            amountOwed: amountOwed,
-            splitValue: pct
-          });
-        }
-      } else if (splitType === 'UNEQUAL') {
+    if (splitType === 'EQUAL' || splitType === 'SHARE') {
+      let shares = [];
+      let totalShares = new Decimal(0);
+
+      if (splitType === 'SHARE' && splitDetailsStr) {
         const parts = splitDetailsStr.split(';');
-        for (let i = 0; i < pCount; i++) {
-          const m = participantMembers[i];
+        participantMembers.forEach(m => {
           const match = parts.find(p => p.toLowerCase().includes(m.user.name.toLowerCase()) || p.toLowerCase().includes(m.user.email.toLowerCase()));
-          const amountOwed = match ? new Decimal(match.match(/(\d+(?:\.\d+)?)/)[1]) : new Decimal(0);
-          
-          computedParticipants.push({
-            userId: m.userId,
-            amountOwed: amountOwed,
-            splitValue: amountOwed
-          });
-        }
+          const share = match ? new Decimal(match.match(/(\d+(?:\.\d+)?)/)[1]) : new Decimal(1);
+          shares.push({ member: m, share });
+          totalShares = totalShares.plus(share);
+        });
+      } else {
+        participantMembers.forEach(m => {
+          shares.push({ member: m, share: new Decimal(1) });
+          totalShares = totalShares.plus(1);
+        });
       }
 
-      // Handle Settlement Rows (A-04 & A-16)
-      if (row.anomalies && Array.isArray(row.anomalies) && row.anomalies.some(a => a.code === 'A-04_16')) {
-         // If actionTaken was "Import as Settlement", we create a Settlement instead of Expense
-         if (row.actionTaken === 'Import as Settlement') {
-           const receiver = groupMembers.find(m => description.toLowerCase().includes(m.user.name.toLowerCase()) || description.toLowerCase().includes(m.user.email.toLowerCase()));
-           if (receiver) {
-             const newSettlement = await tx.settlement.create({
-               data: {
-                 groupId, payerId: payer.userId, receiverId: receiver.userId,
-                 amount: totalAmount, currency, date: new Date(date),
-                 importBatchId: batchId,
-                 notes: `Imported from CSV batch ${batchId}`
-               }
-             });
-             // Audit log for settlement
-             await tx.auditLog.create({
-               data: { userId, action: 'SETTLEMENT_CREATED', entityType: 'Settlement', entityId: newSettlement.id,
-                 metadata: { source: 'csv_import', batchId, rowId: row.id } }
-             });
-             continue; // Skip creating expense
-           }
+      if (unknownSharesToAbsorb.greaterThan(0)) {
+         const payerShare = shares.find(s => s.member.userId === payer.userId);
+         if (payerShare) {
+           payerShare.share = payerShare.share.plus(unknownSharesToAbsorb);
+           totalShares = totalShares.plus(unknownSharesToAbsorb);
+         } else {
+           shares.push({ member: payer, share: unknownSharesToAbsorb });
+           totalShares = totalShares.plus(unknownSharesToAbsorb);
+           participantMembers.push(payer);
+           pCount++;
          }
       }
 
-      const isUSD = (currency || '').toUpperCase() === 'USD';
-      const newExpense = await tx.expense.create({
-        data: {
-          groupId,
-          description,
-          amount: totalAmount,
-          currency: isUSD ? 'INR' : currency,   // Store in group currency (INR)
-          originalCurrency: currency,
-          originalAmount: isUSD ? totalAmount : null,
-          exchangeRateToGroupCurrency: new Decimal(exchangeRate),
-          exchangeRateSource: isUSD ? 'frankfurter' : null,
-          exchangeRateDate: isUSD ? new Date(date) : null,
-          expenseDate: new Date(date),
-          paidById: payer.userId,
-          splitType: splitType === 'SHARE' ? 'EQUAL' : splitType,
-          importBatchId: batchId,
-          notes: row.parsedData.notes || null,
-          category: row.parsedData.category || null,
-          participants: {
-            create: computedParticipants
-          }
-        }
-      });
+      for (let i = 0; i < pCount; i++) {
+        const { member, share } = shares[i];
+        let amountOwed = totalAmount.times(share).dividedBy(totalShares).toDecimalPlaces(4, Decimal.ROUND_HALF_UP);
+        
+        if (i === pCount - 1) amountOwed = totalAmount.minus(totalAssigned);
+        totalAssigned = totalAssigned.plus(amountOwed);
 
-      // Audit log for expense
-      await tx.auditLog.create({
-        data: { userId, action: 'EXPENSE_CREATED', entityType: 'Expense', entityId: newExpense.id,
-          metadata: { source: 'csv_import', batchId, rowId: row.id, originalCurrency: currency } }
-      });
+        computedParticipants.push({
+          userId: member.userId,
+          amountOwed: amountOwed,
+          splitValue: splitType === 'SHARE' ? share : null
+        });
+      }
+    } else if (splitType === 'PERCENTAGE') {
+      const parts = splitDetailsStr.split(';');
+      for (let i = 0; i < pCount; i++) {
+        const m = participantMembers[i];
+        const match = parts.find(p => p.toLowerCase().includes(m.user.name.toLowerCase()) || p.toLowerCase().includes(m.user.email.toLowerCase()));
+        const pct = match ? new Decimal(match.match(/(\d+(?:\.\d+)?)/)[1]) : new Decimal(0);
+        
+        let amountOwed = totalAmount.times(pct).dividedBy(100).toDecimalPlaces(4, Decimal.ROUND_HALF_UP);
+        if (i === pCount - 1 && totalAssigned.plus(amountOwed).lessThan(totalAmount)) {
+           amountOwed = totalAmount.minus(totalAssigned);
+        }
+        totalAssigned = totalAssigned.plus(amountOwed);
+
+        computedParticipants.push({
+          userId: m.userId,
+          amountOwed: amountOwed,
+          splitValue: pct
+        });
+      }
+    } else if (splitType === 'UNEQUAL') {
+      const parts = splitDetailsStr.split(';');
+      for (let i = 0; i < pCount; i++) {
+        const m = participantMembers[i];
+        const match = parts.find(p => p.toLowerCase().includes(m.user.name.toLowerCase()) || p.toLowerCase().includes(m.user.email.toLowerCase()));
+        const amountOwed = match ? new Decimal(match.match(/([\d,]+(?:\.\d+)?)/)[1].replace(/,/g, '')) : new Decimal(0);
+        
+        computedParticipants.push({
+          userId: m.userId,
+          amountOwed: amountOwed,
+          splitValue: amountOwed
+        });
+      }
     }
 
-    // Count anomalies for ImportBatch stats
-    const totalAnomalies = batch.rows.reduce((sum, r) => {
-      if (r.anomalies && Array.isArray(r.anomalies)) return sum + r.anomalies.length;
-      return sum;
-    }, 0);
+    if (row.anomalies && Array.isArray(row.anomalies) && row.anomalies.some(a => a.code === 'A-04_16')) {
+       if (row.actionTaken === 'Import as Settlement') {
+         const receiver = groupMembers.find(m => description.toLowerCase().includes(m.user.name.toLowerCase()) || description.toLowerCase().includes(m.user.email.toLowerCase()));
+         if (receiver) {
+           const settlementId = crypto.randomUUID();
+           operations.push(prisma.settlement.create({
+             data: {
+               id: settlementId,
+               groupId, payerId: payer.userId, receiverId: receiver.userId,
+               amount: totalAmount, currency, date: new Date(date),
+               importBatchId: batchId,
+               notes: `Imported from CSV batch ${batchId}`
+             }
+           }));
+           operations.push(prisma.auditLog.create({
+             data: { userId, action: 'SETTLEMENT_CREATED', entityType: 'Settlement', entityId: settlementId,
+               metadata: { source: 'csv_import', batchId, rowId: row.id } }
+           }));
+           continue;
+         }
+       }
+    }
 
-    // Mark batch as committed with stats
-    await tx.importBatch.update({
-      where: { id: batchId },
-      data: { status: 'COMMITTED', totalRows: batch.rows.length, anomalyCount: totalAnomalies, committedBy: userId }
-    });
+    const isUSD = (currency || '').toUpperCase() === 'USD';
+    const expenseId = crypto.randomUUID();
+    operations.push(prisma.expense.create({
+      data: {
+        id: expenseId,
+        groupId,
+        description,
+        amount: totalAmount,
+        currency: isUSD ? 'INR' : currency,
+        originalCurrency: currency,
+        originalAmount: isUSD ? totalAmount : null,
+        exchangeRateToGroupCurrency: new Decimal(exchangeRate),
+        exchangeRateSource: isUSD ? 'frankfurter' : null,
+        exchangeRateDate: isUSD ? expenseDate : null,
+        expenseDate: expenseDate,
+        paidById: payer.userId,
+        splitType: splitType === 'SHARE' ? 'EQUAL' : splitType,
+        importBatchId: batchId,
+        notes: row.parsedData.notes || null,
+        category: row.parsedData.category || null,
+        participants: {
+          create: computedParticipants
+        }
+      }
+    }));
 
-    // Audit log for the batch commit itself
-    await tx.auditLog.create({
-      data: { userId, action: 'BATCH_COMMITTED', entityType: 'ImportBatch', entityId: batchId,
-        metadata: { rowsImported: resolvedRows.length, totalRows: batch.rows.length } }
-    });
-  });
+    operations.push(prisma.auditLog.create({
+      data: { userId, action: 'EXPENSE_CREATED', entityType: 'Expense', entityId: expenseId,
+        metadata: { source: 'csv_import', batchId, rowId: row.id, originalCurrency: currency } }
+    }));
+  }
+
+  const totalAnomalies = batch.rows.reduce((sum, r) => {
+    if (r.anomalies && Array.isArray(r.anomalies)) return sum + r.anomalies.length;
+    return sum;
+  }, 0);
+
+  operations.push(prisma.importBatch.update({
+    where: { id: batchId },
+    data: { status: 'COMMITTED', totalRows: batch.rows.length, anomalyCount: totalAnomalies, committedBy: userId }
+  }));
+
+  operations.push(prisma.auditLog.create({
+    data: { userId, action: 'BATCH_COMMITTED', entityType: 'ImportBatch', entityId: batchId,
+      metadata: { rowsImported: resolvedRows.length, totalRows: batch.rows.length } }
+  }));
+
+  await prisma.$transaction(operations);
 
   return { message: 'Batch committed successfully', rowsImported: resolvedRows.length };
 }

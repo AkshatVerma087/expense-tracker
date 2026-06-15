@@ -27,3 +27,32 @@ export async function getGroupExpenses(req, res) {
     res.status(403).json({ error: error.message });
   }
 }
+
+export async function updateExpense(req, res) {
+  try {
+    const { groupId, expenseId } = req.params;
+    const userId = req.user.id;
+    const data = req.body || {};
+
+    if (!data.description || !data.amount || !data.paidById || !data.splitType || !data.participants) {
+      return res.status(400).json({ error: 'Missing required fields for expense update' });
+    }
+
+    const expense = await expensesService.updateExpense(userId, groupId, expenseId, data);
+    res.status(200).json({ message: 'Expense updated successfully', expense });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}
+
+export async function deleteExpense(req, res) {
+  try {
+    const { groupId, expenseId } = req.params;
+    const userId = req.user.id;
+    
+    await expensesService.deleteExpense(userId, groupId, expenseId);
+    res.status(200).json({ message: 'Expense deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}

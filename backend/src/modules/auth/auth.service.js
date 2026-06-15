@@ -121,11 +121,30 @@ async function generateTokens(user) {
   return { user, accessToken, refreshToken };
 }
 
+async function changePassword(userId, oldPassword, newPassword) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.passwordHash) {
+    throw new Error('User not found or uses social login');
+  }
+  
+  const isValid = await bcrypt.compare(oldPassword, user.passwordHash);
+  if (!isValid) {
+    throw new Error('Incorrect old password');
+  }
+  
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash }
+  });
+}
+
 export {
   register,
   login,
   googleAuth,
   refresh,
   logout,
-  generateTokens
+  generateTokens,
+  changePassword
 };

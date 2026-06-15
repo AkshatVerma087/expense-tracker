@@ -150,8 +150,8 @@ export default function Report() {
                     <tr key={i}>
                       <td className="mono text-sm">{ex.date}</td>
                       <td className="text-sm">{ex.expense}</td>
-                      <td className="mono">{ex.rate.toFixed(4)}</td>
-                      <td className="mono amount-negative">₹{ex.converted.toFixed(0)}</td>
+                      <td className="mono">{Number(ex.rate || 0).toFixed(4)}</td>
+                      <td className="mono amount-negative">₹{Number(ex.converted || 0).toFixed(0)}</td>
                     </tr>
                   ))}
                 </tbody>

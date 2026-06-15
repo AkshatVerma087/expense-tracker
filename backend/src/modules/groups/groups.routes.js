@@ -7,6 +7,8 @@ const router = Router();
 router.post('/', groupsController.createGroup);
 router.get('/', groupsController.getUserGroups);
 router.get('/:id', groupsController.getGroupDetails);
+router.put('/:id', groupsController.updateGroup);
 router.post('/:id/members', groupsController.addMember);
+router.put('/:id/members/:userId', groupsController.removeMember);
 
 export default router;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getGroups, createGroup, getGroupDetails, addGroupMember, getGroupBalances, getGroupExpenses, createExpense, recordSettlement } from '../api';
+import { getGroups, createGroup, getGroupDetails, addGroupMember, removeGroupMember, updateGroup, getGroupBalances, getGroupExpenses, createExpense, updateExpense, deleteExpense, recordSettlement } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { getAvatarClass, getInitials } from '../utils/avatar';
 
@@ -21,12 +21,16 @@ export default function Groups() {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isAddMemberModalOpen, setAddMemberModalOpen] = useState(false);
   const [isExpenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [isEditGroupModalOpen, setEditGroupModalOpen] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
 
   // Form states
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const [editGroupForm, setEditGroupForm] = useState({ name: '', description: '' });
 
   // Expense form state
   const [expenseForm, setExpenseForm] = useState({
@@ -106,7 +110,29 @@ export default function Groups() {
     }
   };
 
-  const handleCreateExpense = async (e) => {
+  const handleUpdateGroup = async (e) => {
+    e.preventDefault();
+    try {
+      await updateGroup(selectedGroup.id, editGroupForm.name, editGroupForm.description);
+      setEditGroupModalOpen(false);
+      handleSelectGroup(selectedGroup.id);
+      loadGroups();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleRemoveMember = async (memberId, memberName) => {
+    if (!window.confirm(`Are you sure you want to remove ${memberName}?`)) return;
+    try {
+      await removeGroupMember(selectedGroup.id, memberId);
+      handleSelectGroup(selectedGroup.id);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleSaveExpense = async (e) => {
     e.preventDefault();
     try {
       const payload = {
@@ -120,9 +146,45 @@ export default function Groups() {
           : expenseForm.participants.filter(p => p.splitValue).map(p => ({ userId: p.userId, splitValue: parseFloat(p.splitValue) }))
       };
       
-      await createExpense(selectedGroup.id, payload);
+      if (editingExpenseId) {
+        await updateExpense(selectedGroup.id, editingExpenseId, payload);
+      } else {
+        await createExpense(selectedGroup.id, payload);
+      }
+      
       setExpenseModalOpen(false);
+      setEditingExpenseId(null);
       setExpenseForm(prev => ({ ...prev, description: '', amount: '' }));
+      handleSelectGroup(selectedGroup.id);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleEditExpenseClick = (exp) => {
+    setEditingExpenseId(exp.id);
+    setExpenseForm({
+      description: exp.description,
+      amount: exp.amount,
+      currency: exp.currency || 'INR',
+      paidById: exp.paidById,
+      splitType: exp.splitType,
+      participants: selectedGroup.members.map(m => {
+        const participant = exp.participants.find(p => p.userId === m.userId);
+        return {
+          userId: m.userId,
+          user: m.user,
+          splitValue: participant ? participant.splitValue || participant.percentage || participant.shareNumerator || '' : ''
+        };
+      })
+    });
+    setExpenseModalOpen(true);
+  };
+
+  const handleDeleteExpense = async (expenseId) => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) return;
+    try {
+      await deleteExpense(selectedGroup.id, expenseId);
       handleSelectGroup(selectedGroup.id);
     } catch (err) {
       alert(err.message);
@@ -140,6 +202,9 @@ export default function Groups() {
   };
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
+
+  const currentUserMembership = selectedGroup?.members.find(m => m.userId === user?.id);
+  const isCurrentUserAdmin = currentUserMembership?.role === 'ADMIN';
 
   return (
     <div>
@@ -185,8 +250,21 @@ export default function Groups() {
             </div>
           </div>
           <div className="flex gap-8">
+            {isCurrentUserAdmin && (
+              <button className="btn btn-outline btn-sm" onClick={() => {
+                setEditGroupForm({ name: selectedGroup.name, description: selectedGroup.description || '' });
+                setEditGroupModalOpen(true);
+              }}>✎ Edit Group</button>
+            )}
             <button className="btn btn-outline btn-sm" onClick={() => setActiveTab('Members')}>⚙ Manage Members</button>
-            <button className="btn btn-primary btn-sm" onClick={() => setExpenseModalOpen(true)}>+ Add Expense</button>
+            <button className="btn btn-primary btn-sm" onClick={() => {
+              setEditingExpenseId(null);
+              setExpenseForm({
+                description: '', amount: '', currency: 'INR', paidById: user?.id || selectedGroup.members[0]?.userId || '', splitType: 'EQUAL',
+                participants: selectedGroup.members.map(m => ({ userId: m.userId, user: m.user, splitValue: '' }))
+              });
+              setExpenseModalOpen(true);
+            }}>+ Add Expense</button>
           </div>
         </div>
       </div>
@@ -251,6 +329,7 @@ export default function Groups() {
                       <th>Paid by</th>
                       <th>Split</th>
                       <th style={{ textAlign: 'right' }}>Amount</th>
+                      {isCurrentUserAdmin && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -269,6 +348,12 @@ export default function Groups() {
                         </td>
                         <td><span className="badge badge-sky">{exp.splitType}</span></td>
                         <td className="text-right mono">₹{parseFloat(exp.amount).toFixed(2)}</td>
+                        {isCurrentUserAdmin && (
+                          <td>
+                            <button className="btn btn-ghost btn-sm" onClick={() => handleEditExpenseClick(exp)}>Edit</button>
+                            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red-500)' }} onClick={() => handleDeleteExpense(exp.id)}>Delete</button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -284,17 +369,18 @@ export default function Groups() {
                   <button className="btn btn-primary btn-sm" onClick={() => setAddMemberModalOpen(true)}>+ Add Member</button>
                 </div>
                 <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Member</th>
-                      <th>Role</th>
-                      <th>Joined</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedGroup.members.map(m => (
-                       <tr key={m.id}>
+                   <thead>
+                     <tr>
+                       <th>Member</th>
+                       <th>Role</th>
+                       <th>Joined</th>
+                       <th>Status</th>
+                       {isCurrentUserAdmin && <th>Actions</th>}
+                     </tr>
+                   </thead>
+                   <tbody>
+                     {selectedGroup.members.map(m => (
+                        <tr key={m.id}>
                           <td>
                             <div className="flex items-center gap-8">
                               <div className={`avatar avatar-sm ${getAvatarClass(m.user.name)}`}>{getInitials(m.user.name)}</div>
@@ -307,10 +393,17 @@ export default function Groups() {
                           <td><span className={m.role === 'ADMIN' ? 'badge badge-indigo' : 'badge badge-slate'}>{m.role}</span></td>
                           <td className="mono text-sm">{new Date(m.joinedAt).toLocaleDateString()}</td>
                           <td><span className="badge badge-green">Active</span></td>
-                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          {isCurrentUserAdmin && (
+                             <td>
+                               {m.userId !== user?.id && m.role !== 'ADMIN' && (
+                                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red-500)' }} onClick={() => handleRemoveMember(m.userId, m.user.name)}>Remove</button>
+                               )}
+                             </td>
+                           )}
+                        </tr>
+                     ))}
+                   </tbody>
+                 </table>
              </div>
           )}
 
@@ -403,6 +496,26 @@ export default function Groups() {
          </div>
       )}
 
+      {isEditGroupModalOpen && (
+         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div className="card" style={{ width: '400px' }}>
+               <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px' }}>Edit Group</div>
+               <div className="input-group" style={{ marginBottom: '14px' }}>
+                 <label className="input-label">Group Name</label>
+                 <input className="input" value={editGroupForm.name} onChange={e => setEditGroupForm({...editGroupForm, name: e.target.value})} placeholder="Goa Trip 2026" />
+               </div>
+               <div className="input-group" style={{ marginBottom: '24px' }}>
+                 <label className="input-label">Description</label>
+                 <input className="input" value={editGroupForm.description} onChange={e => setEditGroupForm({...editGroupForm, description: e.target.value})} placeholder="Optional" />
+               </div>
+               <div className="flex justify-between">
+                 <button className="btn btn-ghost" onClick={() => setEditGroupModalOpen(false)}>Cancel</button>
+                 <button className="btn btn-primary" onClick={handleUpdateGroup}>Save</button>
+               </div>
+            </div>
+         </div>
+      )}
+
       {isAddMemberModalOpen && (
          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div className="card" style={{ width: '400px' }}>
@@ -422,8 +535,8 @@ export default function Groups() {
       {isExpenseModalOpen && (
          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div className="card" style={{ width: '500px' }}>
-               <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px' }}>New Expense</div>
-               <form onSubmit={handleCreateExpense}>
+               <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px' }}>{editingExpenseId ? 'Edit Expense' : 'New Expense'}</div>
+               <form onSubmit={handleSaveExpense}>
                  <div className="input-group" style={{ marginBottom: '14px' }}>
                    <label className="input-label">Description</label>
                    <input className="input" required value={expenseForm.description} onChange={e => setExpenseForm({...expenseForm, description: e.target.value})} placeholder="Dinner at Joe's" />

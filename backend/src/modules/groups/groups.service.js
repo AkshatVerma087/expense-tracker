@@ -128,3 +128,29 @@ export async function addMember(groupId, adminUserId, memberEmail) {
     }
   });
 }
+
+export async function updateGroup(groupId, adminUserId, name, description) {
+  const adminMembership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId, userId: adminUserId } }
+  });
+  if (!adminMembership || adminMembership.role !== 'ADMIN' || adminMembership.leftAt) {
+    throw new Error('Only active group admins can update the group');
+  }
+  return prisma.group.update({
+    where: { id: groupId },
+    data: { name, description }
+  });
+}
+
+export async function removeMember(groupId, adminUserId, memberId) {
+  const adminMembership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId, userId: adminUserId } }
+  });
+  if (!adminMembership || adminMembership.role !== 'ADMIN' || adminMembership.leftAt) {
+    throw new Error('Only active group admins can remove members');
+  }
+  return prisma.groupMember.update({
+    where: { groupId_userId: { groupId, userId: memberId } },
+    data: { leftAt: new Date() }
+  });
+}

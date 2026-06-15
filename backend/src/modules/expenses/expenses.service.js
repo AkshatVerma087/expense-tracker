@@ -5,28 +5,14 @@ const { Decimal } = Prisma;
 const prisma = new PrismaClient();
 
 /**
- * Split Engine Logic
+ * Split Engine Logic Helper
  */
-export async function createExpense(userId, groupId, data) {
-  const { description, amount, currency, expenseDate, paidById, splitType, participants } = data;
-
-  // 1. Verify user is in the group and the payer is in the group
-  const requesterMembership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId } }
-  });
-  if (!requesterMembership || requesterMembership.leftAt) {
-    throw new Error('You are not an active member of this group');
-  }
-
-  // 2. Prepare the Split Engine
+function computeSplits(amount, participants, splitType) {
   const totalAmount = new Decimal(amount);
   let computedParticipants = [];
 
   if (splitType === 'EQUAL') {
-    // Split evenly among all given participants
     const splitAmount = totalAmount.dividedBy(participants.length).toDecimalPlaces(4, Decimal.ROUND_HALF_UP);
-    
-    // Handle the remainder (e.g., 100 / 3 = 33.3333, remainder goes to first person)
     let totalAssigned = new Decimal(0);
     for (let i = 0; i < participants.length; i++) {
       let amountOwed = splitAmount;
@@ -43,7 +29,6 @@ export async function createExpense(userId, groupId, data) {
     }
 
   } else if (splitType === 'UNEQUAL') {
-    // Participants specify exactly what they owe
     let sum = new Decimal(0);
     for (const p of participants) {
       const owed = new Decimal(p.splitValue);
@@ -59,7 +44,6 @@ export async function createExpense(userId, groupId, data) {
     }
 
   } else if (splitType === 'PERCENTAGE') {
-    // Participants specify % share
     let sumPercent = new Decimal(0);
     let totalAssigned = new Decimal(0);
     
@@ -87,7 +71,6 @@ export async function createExpense(userId, groupId, data) {
     }
 
   } else if (splitType === 'SHARE') {
-    // Participants specify number of shares
     let totalShares = new Decimal(0);
     for (const p of participants) {
       totalShares = totalShares.plus(new Decimal(p.splitValue));
@@ -115,13 +98,27 @@ export async function createExpense(userId, groupId, data) {
     throw new Error('Invalid split type. Must be EQUAL, UNEQUAL, PERCENTAGE, or SHARE');
   }
 
-  // 3. Write to DB within a transaction
+  return computedParticipants;
+}
+
+export async function createExpense(userId, groupId, data) {
+  const { description, amount, currency, expenseDate, paidById, splitType, participants } = data;
+
+  const requesterMembership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId, userId } }
+  });
+  if (!requesterMembership || requesterMembership.leftAt) {
+    throw new Error('You are not an active member of this group');
+  }
+
+  const computedParticipants = computeSplits(amount, participants, splitType);
+
   return prisma.$transaction(async (tx) => {
     const expense = await tx.expense.create({
       data: {
         groupId,
         description,
-        amount: totalAmount,
+        amount: new Decimal(amount),
         currency,
         expenseDate: expenseDate ? new Date(expenseDate) : new Date(),
         paidById,
@@ -139,6 +136,67 @@ export async function createExpense(userId, groupId, data) {
       }
     });
     return expense;
+  });
+}
+
+export async function updateExpense(userId, groupId, expenseId, data) {
+  const { description, amount, currency, expenseDate, paidById, splitType, participants } = data;
+
+  const requesterMembership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId, userId } }
+  });
+  if (!requesterMembership || requesterMembership.leftAt) {
+    throw new Error('You are not an active member of this group');
+  }
+
+  const computedParticipants = computeSplits(amount, participants, splitType);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.expenseParticipant.deleteMany({ where: { expenseId } });
+
+    const expense = await tx.expense.update({
+      where: { id: expenseId },
+      data: {
+        description,
+        amount: new Decimal(amount),
+        currency,
+        expenseDate: expenseDate ? new Date(expenseDate) : new Date(),
+        paidById,
+        splitType,
+        participants: {
+          create: computedParticipants.map(p => ({
+            userId: p.userId,
+            amountOwed: p.amountOwed,
+            splitValue: p.splitValue
+          }))
+        }
+      },
+      include: {
+        participants: true
+      }
+    });
+    return expense;
+  });
+}
+
+export async function deleteExpense(userId, groupId, expenseId) {
+  const requesterMembership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId, userId } }
+  });
+  if (!requesterMembership || requesterMembership.leftAt) {
+    throw new Error('You are not an active member of this group');
+  }
+
+  const expense = await prisma.expense.findUnique({
+    where: { id: expenseId }
+  });
+  if (!expense || expense.groupId !== groupId || expense.deletedAt) {
+    throw new Error('Expense not found');
+  }
+
+  return prisma.expense.update({
+    where: { id: expenseId },
+    data: { deletedAt: new Date() }
   });
 }
 

@@ -91,6 +91,9 @@ model Expense {
   group                       Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
   paidBy                      User                 @relation("PaidExpenses", fields: [paidById], references: [id])
   participants                ExpenseParticipant[]
+
+  @@index([groupId])
+  @@index([paidById])
 }
 
 model ExpenseParticipant {
@@ -108,6 +111,7 @@ model ExpenseParticipant {
   user            User     @relation("ExpenseParticipations", fields: [userId], references: [id])
 
   @@unique([expenseId, userId])
+  @@index([userId])
 }
 
 model Settlement {
@@ -127,6 +131,10 @@ model Settlement {
   group         Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   payer         User     @relation("PaidSettlements", fields: [payerId], references: [id])
   receiver      User     @relation("ReceivedSettlements", fields: [receiverId], references: [id])
+
+  @@index([groupId])
+  @@index([payerId])
+  @@index([receiverId])
 }
 
 model ImportBatch {

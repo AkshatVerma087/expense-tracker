@@ -66,24 +66,37 @@ export async function detectAnomalies(row, index, groupMembers, existingRows, fe
 
   // Date Parsing (A-01 & A-15)
   if (rawDate) {
-    // Basic date parsing assumption (assuming MM/DD/YYYY unless day <= 12)
-    const parts = rawDate.split('/');
+    // Standardize separators to '/'
+    let standardDate = rawDate.replace(/[-.]/g, '/');
+    const parts = standardDate.split('/');
     if (parts.length === 3) {
       const part1 = parseInt(parts[0], 10);
       const part2 = parseInt(parts[1], 10);
+      let yearStr = parts[2];
       
-      if (part1 <= 12 && part2 <= 12 && part1 !== part2) {
-         // A-15: Ambiguous Date
-         const opt1 = `${parts[2]}-${String(part1).padStart(2, '0')}-${String(part2).padStart(2, '0')}`;
-         const opt2 = `${parts[2]}-${String(part2).padStart(2, '0')}-${String(part1).padStart(2, '0')}`;
-         anomalies.push({ code: 'A-15', type: 'AMBIGUOUS_DATE', severity: 'MEDIUM', message: 'Date format is ambiguous.', options: [opt1, opt2] });
-      } else if (part1 > 12) {
-         // It's DD/MM/YYYY
-         parsedData.date = `${parts[2]}-${String(part2).padStart(2, '0')}-${String(part1).padStart(2, '0')}`;
+      // If part1 is a year (e.g. 2026/06/15)
+      if (part1 > 1000) {
+        parsedData.date = `${part1}-${String(part2).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}`;
       } else {
-         // It's MM/DD/YYYY
-         parsedData.date = `${parts[2]}-${String(part1).padStart(2, '0')}-${String(part2).padStart(2, '0')}`;
+        if (yearStr.length === 2) yearStr = '20' + yearStr;
+        
+        if (part1 <= 12 && part2 <= 12 && part1 !== part2) {
+           // A-15: Ambiguous Date
+           const opt1 = `${yearStr}-${String(part1).padStart(2, '0')}-${String(part2).padStart(2, '0')}`;
+           const opt2 = `${yearStr}-${String(part2).padStart(2, '0')}-${String(part1).padStart(2, '0')}`;
+           anomalies.push({ code: 'A-15', type: 'AMBIGUOUS_DATE', severity: 'MEDIUM', message: 'Date format is ambiguous.', options: [opt1, opt2] });
+           // Default to opt1 to avoid crashing on Invalid Date
+           parsedData.date = opt1;
+        } else if (part1 > 12) {
+           // It's DD/MM/YYYY
+           parsedData.date = `${yearStr}-${String(part2).padStart(2, '0')}-${String(part1).padStart(2, '0')}`;
+        } else {
+           // It's MM/DD/YYYY or DD == MM
+           parsedData.date = `${yearStr}-${String(part1).padStart(2, '0')}-${String(part2).padStart(2, '0')}`;
+        }
       }
+    } else {
+      parsedData.date = rawDate;
     }
   } else {
     anomalies.push({ code: 'MISSING_DATE', type: 'MISSING_DATE', severity: 'CRITICAL', message: 'Date is required.' });
@@ -102,7 +115,8 @@ export async function detectAnomalies(row, index, groupMembers, existingRows, fe
 
   // Amount parsing (A-06, A-13, A-14)
   try {
-    const amountDec = new Decimal(rawAmount || '0');
+    const cleanAmount = String(rawAmount || '0').replace(/,/g, '');
+    const amountDec = new Decimal(cleanAmount || '0');
     if (amountDec.isZero()) {
       anomalies.push({ code: 'A-13', type: 'ZERO_AMOUNT', severity: 'MEDIUM', message: 'Amount is zero. Skip this expense?' });
     } else if (amountDec.isNegative()) {
@@ -134,12 +148,38 @@ export async function detectAnomalies(row, index, groupMembers, existingRows, fe
     anomalies.push({ code: 'A-18', type: 'EQUAL_WITH_SHARE_DETAILS', severity: 'LOW', message: 'Share details provided for an EQUAL split. Using EQUAL.' });
   }
 
-  // A-09: Unknown Member in Split
-  if (splitWith) {
+  // A-09 & A-12: Split participants validation
+  if (splitWith && parsedData.date) {
+    const expenseDate = new Date(parsedData.date);
     const participants = splitWith.split(/[;,]/).map(s => s.trim()).filter(Boolean);
-    const unknown = participants.filter(p => !findMember(p));
+    const unknown = [];
+    const outOfBounds = [];
+
+    participants.forEach(p => {
+      const member = findMember(p);
+      if (!member) {
+        unknown.push(p);
+      } else {
+        // Check A-12: Member Post-Departure or Pre-Arrival
+        let isOutOfBounds = false;
+        if (member.joinedAt && expenseDate < new Date(member.joinedAt)) {
+          isOutOfBounds = true;
+        }
+        if (member.leftAt && expenseDate > new Date(member.leftAt)) {
+          isOutOfBounds = true;
+        }
+        if (isOutOfBounds) {
+          outOfBounds.push(member.user.name);
+        }
+      }
+    });
+
     if (unknown.length > 0) {
-      anomalies.push({ code: 'A-09', type: 'UNKNOWN_MEMBER_IN_SPLIT', severity: 'MEDIUM', message: `Participants ${unknown.join(', ')} are not group members.` });
+      anomalies.push({ code: 'A-09', type: 'UNKNOWN_MEMBER_IN_SPLIT', severity: 'MEDIUM', message: `Participants ${unknown.join(', ')} are not group members. Their share will be absorbed by the payer.` });
+    }
+    
+    if (outOfBounds.length > 0) {
+      anomalies.push({ code: 'A-12', type: 'MEMBER_OUT_OF_BOUNDS', severity: 'CRITICAL', message: `Members ${outOfBounds.join(', ')} were not in the group on this date. Please remove them from the split.` });
     }
   }
 

@@ -62,6 +62,19 @@ export async function addGroupMember(groupId, email) {
   });
 }
 
+export async function removeGroupMember(groupId, userId) {
+  return apiFetch(`/groups/${groupId}/members/${userId}`, {
+    method: 'PUT' // API uses PUT to set leftAt
+  });
+}
+
+export async function updateGroup(groupId, name, description) {
+  return apiFetch(`/groups/${groupId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, description })
+  });
+}
+
 export async function getGroupBalances(groupId) {
   return apiFetch(`/groups/${groupId}/balances`);
 }
@@ -74,6 +87,19 @@ export async function createExpense(groupId, expenseData) {
   return apiFetch(`/groups/${groupId}/expenses`, {
     method: 'POST',
     body: JSON.stringify(expenseData)
+  });
+}
+
+export async function updateExpense(groupId, expenseId, expenseData) {
+  return apiFetch(`/groups/${groupId}/expenses/${expenseId}`, {
+    method: 'PUT',
+    body: JSON.stringify(expenseData)
+  });
+}
+
+export async function deleteExpense(groupId, expenseId) {
+  return apiFetch(`/groups/${groupId}/expenses/${expenseId}`, {
+    method: 'DELETE'
   });
 }
 
@@ -134,4 +160,11 @@ export async function getDashboardMetrics() {
 
 export async function getBatchRows(groupId, batchId) {
   return apiFetch(`/groups/${groupId}/import/batches/${batchId}`);
+}
+
+export async function changePassword(oldPassword, newPassword) {
+  return apiFetch('/auth/password', {
+    method: 'PUT',
+    body: JSON.stringify({ oldPassword, newPassword })
+  });
 }

@@ -6,5 +6,7 @@ const router = Router({ mergeParams: true });
 
 router.post('/', expensesController.createExpense);
 router.get('/', expensesController.getGroupExpenses);
+router.put('/:expenseId', expensesController.updateExpense);
+router.delete('/:expenseId', expensesController.deleteExpense);
 
 export default router;
