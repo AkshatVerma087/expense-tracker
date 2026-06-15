@@ -77,5 +77,5 @@ I believe AI is a powerful tactical tool, but it cannot replace strategic archit
 - **ChatGPT & Claude**: Strictly as junior implementation assistants to generate boilerplate algorithms and component templates. I maintained full ownership over the database schema, business rules, and anomaly detection policies.
 
 ## Deployment Links
-- **Frontend Live App**: [Insert Vercel URL]
-- **Backend API**: [Insert Render URL]
+- **Frontend Live App**: [https://expense-tracker-eight-gray-14.vercel.app](https://expense-tracker-eight-gray-14.vercel.app)
+- **Backend API**: [https://spiltease-backend.onrender.com](https://spiltease-backend.onrender.com)
